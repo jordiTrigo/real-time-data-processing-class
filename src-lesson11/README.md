@@ -157,6 +157,10 @@ uv run python scripts/migrate_discount_code.py
 uv run python scripts/verify.py
 ```
 
+`--duration 0` runs until Ctrl-C. It prints a progress line every two seconds
+(`--log-every 0` silences it) showing committed changes, the *achieved* rate, and
+the insert/update/delete split, so a live generator never looks like a hung one.
+
 The migration is deliberately ordered:
 
 1. add `discount_code Nullable(String)` to ClickHouse;
