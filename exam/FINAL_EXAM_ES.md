@@ -10,18 +10,16 @@ Fecha: _____________________________________
 
 ## Instrucciones
 
-- Justifica tus respuestas con la evidencia proporcionada. Una afirmación correcta sin razonamiento puede recibir crédito parcial.
+- Selecciona una sola respuesta en cada reactivo: la opción que mejor integra la evidencia y las garantías descritas.
 - Puedes usar una calculadora básica y el apéndice de referencia incluido al final.
 - No se evalúa la memorización de comandos, puertos o sintaxis exacta.
-- Cuando propongas una solución, distingue entre **corregir el incidente actual** y **prevenir o detectar la recurrencia**.
-- Si necesitas hacer una suposición, escríbela explícitamente.
 - No hay penalización por respuestas incorrectas.
 
 ---
 
-## Sección A: escenarios de respuesta restringida — 16 puntos
+## Sección A: fundamentos y diagnóstico — 16 puntos
 
-Selecciona la mejor respuesta. Cada reactivo vale 2 puntos.
+Cada reactivo vale 2 puntos.
 
 ### 1. Saturación de Postgres
 
@@ -127,9 +125,9 @@ D. Renombrar un campo existente para evitar crear una nueva versión del esquema
 
 ---
 
-## Sección B: respuestas breves con evidencia — 36 puntos
+## Sección B: arquitectura y decisiones operativas — 36 puntos
 
-Cada reactivo vale 6 puntos. Responde de forma concreta; no se requiere escribir código completo.
+Cada reactivo vale 6 puntos.
 
 ### 9. Por qué cambia el rendimiento analítico
 
@@ -150,13 +148,23 @@ DuckDB sobre Parquet
   elapsed: 0.74 s
 ```
 
-Explica al menos tres mecanismos que sustentan la diferencia observada. Después indica por qué Postgres todavía podría ser la opción correcta para actualizar una sola fila por llave primaria.
+¿Cuál explicación está mejor sustentada por la evidencia?
+
+A. DuckDB es más rápido únicamente porque usa más CPU; el formato de almacenamiento no influye, y Postgres conviene para una actualización puntual porque siempre hace un scan completo.  
+B. DuckDB puede podar 19 columnas y 88 row groups, aprovechar compresión y ejecución vectorizada, y así leer mucho menos; Postgres aún puede ser mejor para una actualización puntual gracias al índice, su almacenamiento por filas y sus garantías transaccionales.  
+C. La diferencia demuestra que todo sistema columnar es siempre más rápido; Postgres conviene para la actualización porque no utiliza WAL ni MVCC.  
+D. DuckDB evita leer las 400 millones de filas exclusivamente por tener un índice B-tree; Postgres debe reescribir toda la tabla para actualizar una fila.
 
 ### 10. Snapshot inicial y posición del WAL
 
 Un consumidor CDC debe copiar una tabla existente y continuar con cambios en vivo. El proceso registra una posición del WAL, `LSN 5000`, abre un snapshot consistente, copia las filas y después consume los eventos del WAL a partir de `LSN 5000`.
 
-Explica por qué la posición y el snapshot deben coordinarse. Describe también cómo aplicar y confirmar los eventos para que un crash no produzca pérdida silenciosa ni resultados finales duplicados.
+¿Cuál diseño evita gaps y mantiene un resultado final correcto ante reintentos?
+
+A. Copiar la tabla sin snapshot, empezar el WAL en su posición más reciente y confirmar cada LSN antes de escribirlo al destino.  
+B. Abrir cualquier snapshot, copiarlo y consumir sólo eventos posteriores al fin de la copia; los deletes pueden ignorarse porque no contienen `after`.  
+C. Registrar `LSN 5000`, confirmar inmediatamente esa posición y usar inserts append-only; si hay un crash, eliminar manualmente todo el destino.  
+D. Asociar el snapshot consistente con `LSN 5000`, reproducir desde esa frontera, aplicar upserts y deletes de forma idempotente y confirmar cada avance sólo después de que el efecto downstream sea durable.
 
 ### 11. Elegir un watermark
 
@@ -167,7 +175,12 @@ Para un stream de pagos:
 - Un watermark de 30 minutos mantiene aproximadamente 120 GB de estado y el job está cerca de su límite de memoria.
 - El producto exige resultados operativos en menos de 5 minutos.
 
-Propón una política de watermark y manejo de datos excepcionalmente tardíos. Explica el tradeoff entre completitud, latencia y uso de estado.
+¿Cuál política equilibra mejor el SLA, la memoria y la completitud?
+
+A. Usar un watermark aproximado de 3–4 minutos y enviar los eventos que lleguen después del cierre a una ruta de late data para corrección o backfill; así se limita estado y latencia a cambio de corregir por otra vía una fracción pequeña.  
+B. Mantener 30 minutos porque maximizar la completitud siempre tiene prioridad, aunque el job exceda memoria y los resultados operativos tarden más de 5 minutos.  
+C. Usar exactamente 5 minutos y descartar silenciosamente cualquier evento posterior; un watermark igual al SLA garantiza cero pérdida.  
+D. Eliminar el watermark y usar processing time; esto conserva menos estado y mantiene la misma semántica de event time.
 
 ### 12. Spark o Flink según el SLA
 
@@ -183,7 +196,12 @@ Ambos workloads alcanzan como máximo 40,000 eventos/s:
 1. Dashboard operativo con SLA de 10 segundos.
 2. Detección de fraude con SLA p99 de 500 ms.
 
-Recomienda un motor para cada workload. Justifica con los datos y menciona una limitación de la recomendación.
+¿Qué recomendación está mejor respaldada por la prueba?
+
+A. Flink para ambos, porque una p50 menor demuestra que siempre cuesta menos y escala mejor.  
+B. Spark para ambos, porque su throughput máximo es mayor aunque no cumpla el p99 de fraude.  
+C. Spark para el dashboard, pues cumple p99 < 10 s con menor CPU en esta prueba; Flink para fraude, pues cumple p99 < 500 ms y sostiene 40,000/s. La conclusión se limita al workload, hardware y configuración probados.  
+D. Spark para fraude y Flink para el dashboard, porque el motor con mayor throughput siempre debe atender el SLA más estricto.
 
 ### 13. Frescura frente a salud de ClickHouse
 
@@ -198,19 +216,29 @@ CPU de ClickHouse:            100%
 latencia de consulta p95:     4.8 s
 ```
 
-Explica la cadena causal. Propón un cambio que recupere la latencia de consulta sin violar necesariamente el SLA de frescura.
+¿Cuál diagnóstico y cambio son más adecuados?
+
+A. La frescura de 0.6 s prueba que ClickHouse está sano; se deben reducir los inserts a una fila para que cada merge termine antes.  
+B. Los micro-inserts crean miles de partes y merges que compiten por CPU e I/O con las consultas. Conviene agrupar por tamaño o hacer flush cada 1–2 s, manteniendo margen frente al SLA de 5 s y monitoreando frescura, partes, merges y p95.  
+C. El problema es exclusivamente la API; agregar una materialized view por cada insert reducirá las partes activas.  
+D. Se debe esperar 30 s entre inserts: es la única forma de reducir merges, aunque viole el SLA de frescura.
 
 ### 14. Capacidad de Kafka
 
 Un clúster recibe **12 MB/s** de datos, requiere **72 horas** de retención y usa factor de replicación **3**. Se desea además **25% de espacio libre** como margen operativo. Usa unidades decimales: 1 TB = 1,000,000 MB.
 
-Calcula la capacidad mínima aproximada que debe provisionarse para los datos retenidos, incluyendo réplicas y margen. Indica además una métrica y un umbral de alerta razonable para evitar un incidente de disco lleno.
+¿Qué capacidad y alerta son correctas?
+
+A. 3.1104 TB; alertar sólo cuando el disco llegue a 100%, porque el factor de replicación no consume espacio adicional.  
+B. 11.664 TB; multiplicar el almacenamiento replicado por 1.25 deja exactamente 25% de la capacidad libre.  
+C. 9.3312 TB; alertar a 95%, porque el margen ya está incluido por el factor de replicación.  
+D. Aproximadamente 12.44 TB: `12 × 259,200 × 3 / 0.75` MB; monitorear uso por broker o log directory, con alerta anticipada, por ejemplo warning a 70% y crítica a 85%.
 
 ---
 
-## Sección C: cálculos y trazas de ejecución — 24 puntos
+## Sección C: fallas y semántica de ejecución — 24 puntos
 
-Cada reactivo vale 8 puntos. Muestra tu razonamiento.
+Cada reactivo vale 8 puntos.
 
 ### 15. Falla parcial en un ETL incremental
 
@@ -223,8 +251,12 @@ El pipeline procesa intervalos horarios con estos pasos:
 
 El proceso falla después de insertar 600 filas. Al reiniciar, vuelve a leer `last_success`.
 
-1. Traza qué sucede con las 1,000 filas después del crash y del reinicio.
-2. Rediseña el orden y la escritura para que el intervalo pueda reintentarse sin pérdida, duplicados finales ni exposición permanente de un resultado parcial.
+¿Qué ocurre y cuál rediseño resuelve el problema de forma completa?
+
+A. Quedan 600 filas y las otras 400 se omiten porque el reinicio comienza en 11:00. Se debe conservar el intervalo pendiente, cargar a staging, publicar mediante upsert/reemplazo atómico y avanzar `last_success` sólo con o después del commit durable.  
+B. Se releen las 1,000 filas automáticamente; basta mover la actualización de `last_success` al final aunque el destino siga siendo append-only con autocommit.  
+C. Las 600 filas insertadas se revierten por el checkpoint; se debe aumentar el tamaño del batch para impedir futuros crashes.  
+D. Quedan las 1,000 filas completas porque `last_success` confirma el intervalo; sólo hace falta agregar un índice al destino.
 
 ### 16. Offsets, crash y duplicados
 
@@ -243,8 +275,12 @@ El consumidor compromete P0 = 110.
 El proceso falla antes de comprometer P1 = 210.
 ```
 
-1. Al reiniciar el consumer group, ¿qué offsets se vuelven a leer en cada partición y qué duplicados o pérdidas aparecen en el sink?
-2. Propón una estrategia que preserve la corrección aun si el proceso falla entre escribir el sink y comprometer offsets.
+¿Cuál análisis y estrategia son correctos?
+
+A. P0 relee 100–109 y P1 continúa en 210; aparecen diez duplicados de P0. Se evitan confirmando offsets antes de escribir.  
+B. Ambas particiones continúan en 210 y no hay duplicados, porque los commits del consumer group son atómicos entre particiones.  
+C. P0 continúa en 110 y P1 relee 200–209; aparecen diez duplicados de P1 y no hay pérdida. Un sink con llave determinista —por ejemplo `(topic, partition, offset)`— y upsert/dedupe hace inocuo el replay.  
+D. P0 continúa en 110 y P1 en 200, pero los diez registros de P1 se pierden; un sink append-only garantiza exactly-once si el commit ocurre después de la escritura.
 
 ### 17. Event time, ventanas y datos tardíos
 
@@ -265,14 +301,18 @@ Una ventana se finaliza cuando el watermark alcanza o supera su límite superior
 | E | 12:11:00 | 4 |
 | F | 12:12:30 | 6 |
 
-1. Traza el avance del watermark desde C hasta F. Indica cuándo se finalizan las ventanas `[12:00, 12:05)` y `[12:05, 12:10)`, sus sumas finales y cualquier evento descartado.
-2. Si el trigger cambia de 1 a 10 segundos, ¿cambia la pertenencia de los eventos a las ventanas? Explica brevemente.
+¿Cuál traza es correcta?
+
+A. Después de C el watermark es 12:08 y la primera suma es 37; D se acepta porque llegó antes de E. El trigger de 10 s mueve los eventos a ventanas distintas.  
+B. Después de C el watermark es 12:06 y se finaliza `[12:00, 12:05)` con 30; D se descarta. Después de E el watermark es 12:09 y, después de F, 12:10:30, cuando se finaliza `[12:05, 12:10)` con 5. El trigger cambia frecuencia/latencia, no pertenencia por event time.  
+C. Después de C el watermark es 12:06, pero ninguna ventana puede cerrarse hasta que llegue un evento exactamente a las 12:05; D eleva la primera suma a 37.  
+D. El watermark retrocede a 12:01 cuando llega D, por lo que ambas ventanas terminan con todos los eventos; cambiar el trigger cambia también el watermark a 10 minutos.
 
 ---
 
 ## Sección D: casos integradores — 24 puntos
 
-Cada caso vale 8 puntos.
+Cada reactivo vale 8 puntos.
 
 ### 18. Quorum, fallas y latencia
 
@@ -283,15 +323,23 @@ Latencia A ↔ B: 20 ms
 Latencia A ↔ C: 120 ms
 ```
 
-1. Compara disponibilidad y latencia de escritura aproximada en tres estados: todos sanos; B fuera de línea; B y C fuera de línea.
-2. Explica por qué agregar réplicas no implica automáticamente mayor throughput de escritura que un Postgres de un solo nodo.
+¿Cuál afirmación describe correctamente los tres estados y el costo de replicación?
+
+A. Con todos sanos A debe esperar siempre a B y C; si B falla no puede escribir, y más réplicas siempre multiplican el throughput.  
+B. Con todos sanos A confirma localmente; con B fuera espera sólo su propio disco, y con B y C fuera continúa porque el líder cuenta como quorum.  
+C. Con todos sanos el quorum requiere los tres nodos; con B fuera A+C ya no forman mayoría, aunque agregar réplicas elimina los round trips de escritura.  
+D. Con todos sanos A puede confirmar con B, el follower más rápido; con B fuera aún confirma con A+C pero con mayor latencia; con B y C fuera no hay mayoría. Replicar el log y esperar quorum agrega coordinación, por lo que no garantiza más throughput.
 
 ### 19. Exactly-once fuera del procesador
 
 Un job lee 500 eventos de Kafka por micro-batch y llama una API de cobro una vez por evento. La API acepta opcionalmente un encabezado `Idempotency-Key`, pero el job no lo utiliza. Después de 400 respuestas exitosas, el driver muere antes de confirmar el checkpoint del batch.
 
-1. Explica qué puede ocurrir al reiniciar y por qué el checkpoint no proporciona exactly-once end-to-end.
-2. Diseña una estrategia de entrega segura utilizando las capacidades descritas. Incluye cómo tratarías errores permanentes de registros individuales sin bloquear todo el stream.
+¿Qué comportamiento y diseño proporcionan la mejor seguridad de entrega?
+
+A. Spark puede reproducir los 500 eventos y repetir hasta 400 cobros ya aceptados. Debe reutilizar una `Idempotency-Key` determinista por evento, confirmar progreso después del efecto durable y enviar errores permanentes identificados a una DLQ monitoreada, con retries para errores transitorios.  
+B. Spark reanuda necesariamente en el evento 401; el checkpoint revierte automáticamente las 400 llamadas externas, así que no hace falta idempotencia.  
+C. Se deben confirmar los 500 offsets antes de llamar a la API y descartar cualquier error; así no hay duplicados ni pérdida.  
+D. Una `Idempotency-Key` aleatoria en cada retry evita cobros duplicados, y un registro inválido debe bloquear indefinidamente todo el stream.
 
 ### 20. Pipeline sano, datos incorrectos
 
@@ -319,8 +367,12 @@ ClickHouse/API:
 
 Un evento de delete de Debezium tiene `op=d`, datos anteriores en `before` y `after=null`.
 
-1. Identifica la causa raíz y explica por qué lag, frescura, latencia y errores pueden permanecer normales.
-2. Propón una corrección segura para representar deletes downstream y una señal de prevención o calidad de datos que detecte este problema pronto.
+¿Cuál diagnóstico y corrección son más completos?
+
+A. ClickHouse está atrasado por merges; reiniciarlo eliminará las 2,000 órdenes extra, y la frescura es suficiente para detectar el problema.  
+B. Debezium no emitió deletes; se debe aumentar la retención de Kafka y alertar únicamente por consumer lag.  
+C. El filtro descarta los deletes porque tienen `after=null`, aunque todas las etapas sigan rápidas y sin errores. Se debe procesar `op=d` como retractación/tombstone o versión `is_deleted`, reconciliar las filas ya obsoletas y alertar si los deletes de origen no se reflejan downstream.  
+D. Las 2,000 órdenes extra provienen de los updates; se corrige ignorando también `op=u` y comparando sólo la latencia de la API.
 
 ---
 
