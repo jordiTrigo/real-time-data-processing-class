@@ -61,3 +61,7 @@ _tmp_load.csv
 .env.local
 .env.*.local
 .DS_Store
+
+exam/FINAL_EXAM_KEY_ES.md
+EXAM_BLUEPRINT.md
+*_CHEATSHEET.md
