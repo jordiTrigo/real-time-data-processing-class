@@ -201,15 +201,23 @@ Formato: 12 clases de 3 horas. ~1 hora de teoría, ~2 horas construyendo, midien
 
 ---
 
-### Clase 12: Capstone, Rompe Todo, Arregla Todo
+### Clase 12: Rompe Todo — y Construye el Agente que Recibe la Alerta
 
 > En producción, las cosas se rompen de formas que no ensayaste. Esta clase simula eso.
 
-**Teoría:** Taxonomía de fallas: particiones de red, poison pills, hotspots de partición, corrupción de esquema, disco lleno. Chaos engineering: metodología, no destrucción aleatoria. Degradación controlada. Capacity planning.
+**Teoría:** Taxonomía de fallas, chaos engineering, degradación controlada y
+capacity planning, conectados con ingeniería moderna de agentes: workflows
+deterministas vs. juicio del modelo, herramientas tipadas, MCP, estado durable,
+retrieval, aprobación humana, trazas y evaluaciones basadas en evidencia.
 
-**Práctico:** CTF. Pipeline pre-construida (implementación de referencia) con 6 escenarios de falla inyectados a través de todas las capas del stack. Diagnosticar y reparar bajo presión de tiempo. Las fallas son independientes, se atacan en cualquier orden.
+**Práctico:** CTF distribuido con seis escenarios acotados y reversibles sobre un
+pipeline autocontenido. Después, construir un camino vertical con LangGraph que
+investiga con herramientas de solo lectura, registra evidencia, se detiene para
+aprobación humana y se compara con el diagnóstico humano en un séptimo incidente.
 
-**Entregable:** Post-mortem por cada falla (causa raíz, método de detección, fix, estrategia de prevención) y los code fixes correspondientes.
+**Entregable:** Un post-mortem con evidencia precisa y un vertical slice del
+agente: contrato de herramienta, estado estructurado, traza, frontera de
+aprobación, verificación y caso de evaluación.
 
 ---
 

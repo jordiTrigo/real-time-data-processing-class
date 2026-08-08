@@ -152,13 +152,23 @@ Submit via pull request (preferred) or zip upload to the course drive.
 
 ---
 
-### Lesson 12, Capstone: break everything, fix everything
+### Lesson 12, Break everything—and build the agent who gets paged
 
-**Theory:** Failure taxonomy (network partitions, slow nodes, poison pills, schema corruption, disk full). Chaos engineering principles. Graceful degradation patterns. Capacity planning for streaming systems.
+**Theory:** Failure taxonomy, chaos engineering, graceful degradation, and capacity
+planning meet modern agent engineering: deterministic workflows versus model
+judgment, typed tools, MCP, durable state, retrieval, approval gates, traces, and
+evidence-based evaluation.
 
-**Practical:** CTF-style exercise. Students receive the instructor's reference pipeline with 6 injected failure scenarios spanning every layer of the stack. Diagnose and fix under time pressure.
+**Practical:** Six pairs investigate six bounded incident stations across the
+standalone end-to-end pipeline. The class then builds one evidence-first LangGraph
+incident path, pauses at a human approval boundary, and compares the human and
+agent trajectories on a seventh unseen case.
 
-**Deliverable:** Post-mortem document for each failure, root cause, detection method, fix, and prevention strategy, plus the code fixes.
+**Deliverable:** One evidence-rich post-mortem plus a safe agent vertical slice:
+typed tool contract, structured incident state, trace, approval boundary,
+verification plan, and evaluation case. The complete implementation is in
+[`src-lesson12/`](src-lesson12/) and the deck is
+[`slides/lesson-12.html`](slides/lesson-12.html).
 
 ---
 
