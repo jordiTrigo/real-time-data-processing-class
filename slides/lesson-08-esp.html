@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lección 8 · Procesamiento de flujos II · Estado que sobrevive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   LESSON 8 — "TELEMETRY" DESIGN SYSTEM (L7–L9)
+   ============================================================ */
+:root{
+  --bg:#0c1014; --bg2:#10161d; --panel:#151c25; --panel2:#1a222d;
+  --text:#e7eaee; --soft:#aab4bf; --muted:#67737f;
+  --line:#222c37; --line-strong:#324050;
+  --cyan:#5cd6e8; --cyan-soft:rgba(92,214,232,0.10); --cyan-dim:rgba(92,214,232,0.22);
+  --ember:#ff6e54; --ember-soft:rgba(255,110,84,0.10); --ember-dim:rgba(255,110,84,0.25);
+  --grid:rgba(92,214,232,0.045);
+  --code-bg:#0a0e12;
+  --sans:'Space Grotesk',-apple-system,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --dur:0.7s; --ease:cubic-bezier(.16,1,.3,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-snap-type:y mandatory;scroll-behavior:smooth}
+html,body{height:100%;overflow-x:hidden;background:var(--bg);color:var(--text);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+.slide{
+  width:100vw;height:100vh;height:100dvh;overflow:hidden;position:relative;scroll-snap-align:start;
+  display:flex;flex-direction:column;padding:clamp(1.3rem,3.5vw,3.3rem) clamp(1.4rem,5vw,4.5rem);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:52px 52px;
+}
+.slide-content{flex:1;display:flex;flex-direction:column;justify-content:center;max-height:100%;min-height:0;overflow:hidden}
+.slide.deep{background-color:#080b0e}
+
+.crumbs{display:flex;flex-wrap:wrap;font-family:var(--mono);font-size:clamp(0.55rem,0.92vw,0.7rem);color:var(--muted);letter-spacing:0.03em}
+.crumb{padding-right:0.8em;margin-right:0.8em;border-right:1px solid var(--line-strong)}
+.crumb:last-child{border-right:0;margin-right:0;padding-right:0}
+.crumb.on{color:var(--text);font-weight:700;position:relative}
+.crumb.on::after{content:'';position:absolute;left:0;right:0.8em;bottom:-0.45em;height:2px;background:var(--cyan)}
+
+.kicker{font-family:var(--mono);font-size:clamp(0.6rem,1vw,0.74rem);letter-spacing:0.16em;text-transform:uppercase;color:var(--muted)}
+.eyebrow{font-family:var(--mono);font-size:clamp(0.58rem,0.95vw,0.72rem);letter-spacing:0.12em;text-transform:uppercase;color:var(--cyan)}
+.section-marker{display:inline-flex;align-items:center;gap:0.4rem;font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);
+  font-weight:700;text-transform:uppercase;letter-spacing:0.12em;padding-bottom:0.35rem;border-bottom:2px solid var(--cyan);color:var(--cyan);align-self:flex-start}
+.section-marker.hot{border-color:var(--ember);color:var(--ember)}
+h1{font-family:var(--sans);font-weight:700;line-height:0.98;letter-spacing:-0.025em;font-size:clamp(2.5rem,7.5vw,5.6rem);color:var(--text)}
+h2{font-family:var(--sans);font-weight:600;line-height:1.05;letter-spacing:-0.015em;font-size:clamp(1.55rem,4.2vw,2.9rem);color:var(--text)}
+h2 em,h1 em{font-style:normal;font-weight:600;color:var(--cyan)}
+h2 em.hot,h1 em.hot{color:var(--ember)}
+.sub{font-family:var(--sans);font-weight:400;font-size:clamp(0.84rem,1.5vw,1.08rem);color:var(--soft);max-width:640px;line-height:1.6}
+.lede{font-family:var(--sans);font-weight:500;font-size:clamp(0.95rem,1.8vw,1.3rem);color:var(--text);line-height:1.4}
+.label{font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted)}
+
+.term{font-family:var(--mono);font-size:0.84em;color:var(--cyan);white-space:nowrap;padding:0 0.1em}
+.term::before{content:'\231C';margin-right:0.06em;opacity:0.7}
+.term::after{content:'\231D';margin-left:0.06em;opacity:0.7}
+.term.hot{color:var(--ember)}
+.hl{background:var(--cyan-soft);color:var(--cyan);padding:0.04em 0.32em;border-radius:2px;font-weight:600}
+.ink-mono{font-family:var(--mono);font-size:0.88em;background:rgba(92,214,232,0.08);padding:0.05em 0.35em;border-radius:3px;color:#cfe9ee}
+
+.bullets{list-style:none;display:flex;flex-direction:column;gap:clamp(0.3rem,0.7vh,0.5rem)}
+.bullets li{font-family:var(--sans);font-size:clamp(0.74rem,1.25vw,0.94rem);color:var(--text);line-height:1.45;padding-left:1.35em;text-indent:-1.35em}
+.bullets li::before{content:'\25B8';color:var(--cyan);font-weight:700;margin-right:0.55em}
+.bullets.hot li::before{color:var(--ember)}
+.bullets li strong{font-weight:600}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1rem,2.5vw,2rem);flex:1;min-height:0}
+@media(max-width:700px){.two-col{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:clamp(0.3rem,0.7vh,0.55rem);min-height:0}
+.col-label{font-family:var(--mono);font-size:clamp(0.55rem,0.85vw,0.68rem);font-weight:700;text-transform:uppercase;letter-spacing:0.06em}
+
+.big-q{font-family:var(--sans);font-weight:600;font-size:clamp(1.6rem,4.4vw,3.2rem);line-height:1.12;letter-spacing:-0.02em;color:var(--text);max-width:22ch}
+
+.callout{display:flex;gap:clamp(0.4rem,0.9vw,0.65rem);padding:clamp(0.4rem,0.9vh,0.7rem) clamp(0.6rem,1.2vw,1rem);
+  border-radius:5px;border-left:3px solid;flex-shrink:0;background:var(--panel)}
+.callout .ico{flex-shrink:0;width:clamp(0.95rem,1.4vw,1.15rem);height:clamp(0.95rem,1.4vw,1.15rem);margin-top:0.05em}
+.callout .ctxt{font-family:var(--sans);font-size:clamp(0.66rem,1.1vw,0.85rem);line-height:1.5;color:var(--soft)}
+.callout .ctxt strong{color:var(--text)}
+.callout.note{border-color:var(--line-strong)}
+.callout.danger{background:var(--ember-soft);border-color:var(--ember)}
+.callout.proof{background:var(--cyan-soft);border-color:var(--cyan)}
+
+.prompt{background:var(--code-bg);border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:5px;padding:clamp(0.42rem,0.95vh,0.68rem) clamp(0.7rem,1.4vw,1.05rem)}
+.prompt .plabel{display:block;font-family:var(--mono);font-size:clamp(0.48rem,0.75vw,0.6rem);font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--cyan);margin-bottom:0.3rem}
+.prompt .pcmd{display:block;font-family:var(--mono);font-size:clamp(0.6rem,1vw,0.78rem);color:#c4ccd4;line-height:1.7}
+.prompt .pcmd::before{content:'\276F  ';color:var(--cyan);font-weight:700}
+
+.code-block{background:var(--code-bg);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-height:0}
+.code-header{display:flex;align-items:center;gap:5px;padding:clamp(0.28rem,0.5vh,0.4rem) clamp(0.5rem,1vw,0.8rem);
+  background:rgba(92,214,232,0.05);border-bottom:1px solid var(--line)}
+.code-dot{width:7px;height:7px;border-radius:50%;background:var(--line-strong)}
+.code-label{margin-left:auto;font-family:var(--mono);font-size:clamp(0.5rem,0.78vw,0.62rem);color:var(--muted)}
+.code-copy{background:var(--panel2);border:1px solid var(--line-strong);color:var(--text);font-family:var(--mono);font-size:clamp(0.45rem,0.7vw,0.58rem);padding:0.18em 0.65em;border-radius:4px;cursor:pointer;transition:background .15s,color .15s}
+.code-copy:hover{background:var(--line-strong);color:var(--cyan)}
+.code-copy.copied{color:var(--cyan)}
+.code-body{padding:clamp(0.5rem,1vh,0.85rem) clamp(0.7rem,1.3vw,1.1rem);font-family:var(--mono);
+  font-size:clamp(0.55rem,0.92vw,0.72rem);line-height:1.62;color:#c4ccd4;white-space:pre;overflow:hidden;text-align:left}
+.k{color:#7fb4e8}.s{color:#d8b478}.fn{color:#e7eaee}.v{color:#9fb6c9}
+.g{color:#d8b478}.n{color:#7fd6a4}.r{color:#ff6e54;font-weight:700}.cm{color:#5b6672;font-style:italic}
+.cy{color:#5cd6e8}
+
+.arch{font-family:var(--mono);font-size:clamp(0.5rem,0.85vw,0.68rem);color:var(--soft);line-height:1.5;white-space:pre;
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:clamp(0.7rem,1.4vh,1.1rem) clamp(0.9rem,1.6vw,1.3rem);overflow:hidden}
+
+.dtable{width:100%;border-collapse:collapse}
+.dtable th,.dtable td{font-family:var(--sans);font-size:clamp(0.62rem,1.05vw,0.84rem);
+  padding:clamp(0.22rem,0.5vh,0.42rem) clamp(0.4rem,0.9vw,0.75rem);text-align:left;border-bottom:1px solid var(--line)}
+.dtable th{font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:clamp(0.5rem,0.78vw,0.62rem);color:var(--muted)}
+.dtable td.num,.dtable th.num{font-family:var(--mono);text-align:right}
+.dtable tr:last-child td{border-bottom:0}
+.dtable .hot{color:var(--ember);font-weight:600}
+.dtable .cool{color:var(--cyan);font-weight:600}
+
+.stat{font-family:var(--mono);font-weight:700;font-size:clamp(1.5rem,3.6vw,2.7rem);line-height:1;color:var(--text)}
+.stat.cool{color:var(--cyan)}.stat.red{color:var(--ember)}
+.stat-label{font-family:var(--mono);font-size:clamp(0.55rem,0.85vw,0.68rem);color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+
+.meta{display:flex;justify-content:space-between;align-items:center;gap:1rem;font-family:var(--mono);
+  font-size:clamp(0.5rem,0.82vw,0.64rem);color:var(--muted);letter-spacing:0.03em}
+.meta span:nth-child(2){text-align:right;opacity:0.8}
+hr.rule{border:0;border-top:1px solid var(--line);margin:0}
+
+/* ---- state lane (signature visual: process crashes, resumes from checkpoint, not zero) ---- */
+.slane{position:relative;height:clamp(64px,11vh,96px);max-width:760px;margin-top:clamp(0.8rem,2vh,1.4rem)}
+.slane .srail{position:absolute;left:0;right:0;top:50%;height:2px;background:var(--line-strong)}
+.slane .srail::after{content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);
+  border-left:8px solid var(--line-strong);border-top:5px solid transparent;border-bottom:5px solid transparent}
+.slane .ckpt{position:absolute;top:50%;width:9px;height:9px;background:var(--panel2);border:1.5px solid var(--cyan-dim);
+  transform:translate(-50%,-50%) rotate(45deg)}
+.slane .ckpt::before{content:'checkpoint';position:absolute;top:-2.1em;left:50%;transform:translate(-50%,0) rotate(-45deg);
+  font-family:var(--mono);font-size:clamp(0.48rem,0.75vw,0.6rem);color:var(--muted);letter-spacing:0.04em;white-space:nowrap}
+.slane .ckpt:not(:nth-of-type(2))::before{content:''}
+.slane .crash{position:absolute;top:14%;left:52%;transform:translate(-50%,0);opacity:0;animation:crashFlash 6s linear infinite}
+.slane .crash::after{content:'crash';position:absolute;top:1.5em;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:clamp(0.48rem,0.75vw,0.6rem);color:var(--ember);letter-spacing:0.04em;white-space:nowrap}
+.slane .proc{position:absolute;top:50%;width:clamp(12px,1.5vw,16px);height:clamp(12px,1.5vw,16px);border-radius:50%;
+  background:var(--cyan);box-shadow:0 0 10px rgba(92,214,232,.55);transform:translate(-50%,-50%);
+  animation:stateRun 6s linear infinite;opacity:0}
+.slane .cap{position:absolute;bottom:-1.6em;left:0;font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.68rem);color:var(--muted);letter-spacing:0.04em}
+@keyframes crashFlash{
+  0%,43%{opacity:0;transform:translate(-50%,0) scale(0.6)}
+  45%{opacity:1;transform:translate(-50%,0) scale(1.15)}
+  49%,100%{opacity:0;transform:translate(-50%,0) scale(0.6)}
+}
+@keyframes stateRun{
+  0%{left:0%;opacity:0;background:var(--cyan)}
+  5%{opacity:1}
+  44%{left:52%;opacity:1;background:var(--cyan)}
+  46%{left:52%;opacity:0;background:var(--cyan)}
+  54%{left:31%;opacity:0;background:var(--ember)}
+  58%{left:31%;opacity:1;background:var(--ember)}
+  65%{left:31%;opacity:1;background:var(--cyan)}
+  97%{left:100%;opacity:1;background:var(--cyan)}
+  100%{left:100%;opacity:0;background:var(--cyan)}
+}
+@media (prefers-reduced-motion:reduce){
+  .slane .proc{animation:none;left:31%;opacity:1;background:var(--cyan)}
+  .slane .crash{animation:none;opacity:.85}
+}
+
+.reveal{opacity:0;transform:translateY(18px);transition:opacity var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.slide.visible .reveal{opacity:1;transform:none}
+.slide.visible .reveal:nth-child(1){transition-delay:.05s}
+.slide.visible .reveal:nth-child(2){transition-delay:.12s}
+.slide.visible .reveal:nth-child(3){transition-delay:.19s}
+.slide.visible .reveal:nth-child(4){transition-delay:.26s}
+.slide.visible .reveal:nth-child(5){transition-delay:.33s}
+.slide.visible .reveal:nth-child(6){transition-delay:.40s}
+.slide.visible .reveal:nth-child(7){transition-delay:.47s}
+
+.progress-bar{position:fixed;bottom:0;left:0;height:2px;background:var(--cyan);z-index:200;width:0;transition:width .35s ease}
+.kbd-hint{position:fixed;bottom:clamp(0.5rem,1.2vh,0.9rem);left:50%;transform:translateX(-50%);font-family:var(--mono);
+  font-size:clamp(0.42rem,0.65vw,0.52rem);color:var(--muted);opacity:0.5;z-index:200}
+@media(max-height:600px){.kbd-hint{display:none}}
+@media (prefers-reduced-motion:reduce){.reveal{transition-duration:.2s}html{scroll-behavior:auto}}
+
+.spoiler{position:relative;cursor:pointer}
+.spoiler>*{filter:blur(9px);transition:filter .5s var(--ease)}
+.spoiler::after{content:'predict first \00b7 click or press R';position:absolute;inset:0;z-index:2;
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+  font-size:clamp(0.6rem,1vw,0.78rem);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--cyan)}
+.spoiler.revealed>*{filter:none}
+.spoiler.revealed::after{display:none}
+
+@keyframes titleRise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes drawUnderline{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+#s1 .reveal{opacity:0;animation:titleRise .85s var(--ease) forwards}
+#s1 .crumbs.reveal{animation-delay:.05s}
+#s1 .eyebrow.reveal{animation-delay:.25s}
+#s1 h1.reveal{animation-delay:.4s}
+#s1 .sub.reveal{animation-delay:.7s}
+#s1 .slane.reveal{animation-delay:1.05s}
+#s1 .t-data{position:relative;white-space:nowrap}
+#s1 .t-data::after{content:'';position:absolute;left:0;right:-.04em;bottom:.04em;height:.085em;background:var(--cyan);transform:scaleX(0);transform-origin:left;animation:drawUnderline .7s var(--ease) 1.2s forwards}
+@media (prefers-reduced-motion:reduce){
+  #s1 .reveal{animation:none}
+  #s1 .reveal{opacity:1;transform:none}#s1 .t-data::after{transform:scaleX(1)}
+}
+
+/* s3 · sequence scenario A fully, then scenario B, then the question and takeaway */
+#s3.visible .col:first-child .col-label.step{transition-delay:.32s}
+#s3.visible .col:first-child .code-block.step{transition-delay:.44s}
+#s3.visible .col:first-child .callout.step{transition-delay:.58s}
+#s3.visible .col:last-child .col-label.step{transition-delay:.72s}
+#s3.visible .col:last-child .code-block.step{transition-delay:.85s}
+#s3.visible .col:last-child .callout.step{transition-delay:1.0s}
+#s3.visible .prompt.step{transition-delay:1.15s}
+#s3.visible .takeaway.step{transition-delay:1.32s}
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<span class="kbd-hint">&uarr; &darr; navigate &middot; R reveal</span>
+
+<!-- ════════════════════════════════════════════════════════════
+     LESSON 8 · STREAM PROCESSING II · "STATE THAT SURVIVES"
+     ════════════════════════════════════════════════════════════ -->
+
+<!-- ─── 01 · TITLE ─────────────────────────────────────── -->
+<section class="slide visible deep" id="s1" data-speaker="Empieza conectando la Lección 7 con la Lección 8: la misma forma Fuente -> operadores -> sumidero, pero el operador ahora lo recuerda. Las tuberías reales se aceleran, tartamudean y colapsan; la prueba de matar es la prueba de que el estado sobrevive.">
+  <div class="crumbs reveal">
+    <span class="crumb">07 Ventanas</span>
+    <span class="crumb on">08 Estado</span>
+    <span class="crumb">09 Flink</span>
+  </div>
+  <div class="slide-content">
+    <div class="eyebrow reveal" style="margin-bottom:0.8rem;">Procesamiento de flujos II &middot; estado y exactamente una vez</div>
+    <h1 class="reveal">Estado que <span class="t-data">sobrevive.</span></h1>
+    <p class="sub reveal" style="margin-top:clamp(0.9rem,2vh,1.4rem);">La misma forma universal que la Lección 7 — <span class="ink-mono">Fuente &rarr; operadores &rarr; sumidero</span> — pero el operador ahora lo recuerda. La lección 7 hizo que la secuencia se calculara; la Lección 8 hace que el cálculo <em style="color:var(--cyan);font-style:normal;">recuerde</em>. Uniones, deduplicación, sesionización: todos estados que deben sobrevivir a un microlote, una falla, un reinicio. Luego la prueba de pasa/falla: <span class="term">kill -9</span> al controlador y demostrar que Postgres todavía tiene exactamente las filas correctas.</p>
+    <div class="slane reveal" style="margin-top:clamp(0.9rem,2.2vh,1.5rem);">
+      <div class="srail"></div>
+      <span class="ckpt" style="left:14%"></span>
+      <span class="ckpt" style="left:31%"></span>
+      <span class="ckpt" style="left:66%"></span>
+      <span class="ckpt" style="left:88%"></span>
+      <svg class="crash" viewBox="0 0 24 24" width="18" height="18" fill="var(--ember)"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg>
+      <span class="proc"></span>
+      <span class="cap">el estado avanza, controlando a medida que avanza &middot; <span class="term hot">kill -9</span> golpea &middot; el reinicio se reanuda en el último punto de control, no en cero</span>
+    </div>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>PROCESAMIENTO DE DATOS EN TIEMPO REAL</span><span>PySpark Structured Streaming &middot; Kafka &middot; Postgres</span></div>
+</section>
+
+<!-- ─── 04 · TOPOLOGY WITH STATE ───────────────────────── -->
+<section class="slide" id="s4">
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
+    <div class="section-marker reveal">Hora 1 &middot; la forma universal</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Fuente &rarr; operador &rarr; estado &rarr; sumidero.</h2>
+    <div class='arch reveal' style='margin-top:clamp(0.6rem,1.5vh,1rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 980 196' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='Topología de flujo: fuente, luego análisis gramatical y filtrado sin estado, luego agregado con ventanas con estado, luego sumidero'>
+  <defs>
+    <marker id='l8arrow' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <g stroke='#5cd6e8' stroke-width='2'>
+    <line x1='158' y1='80' x2='186' y2='80' marker-end='url(#l8arrow)'/>
+    <line x1='316' y1='80' x2='334' y2='80' marker-end='url(#l8arrow)'/>
+    <line x1='464' y1='80' x2='482' y2='80' marker-end='url(#l8arrow)'/>
+    <line x1='726' y1='80' x2='754' y2='80' marker-end='url(#l8arrow)'/>
+  </g>
+  <rect x='6' y='48' width='152' height='64' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='82' y='76' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>tema Kafka</text>
+  <text x='82' y='96' text-anchor='middle' fill='#67737f' font-size='10.5' letter-spacing='0.12em'>FUENTE</text>
+  <rect x='192' y='48' width='124' height='64' rx='8' fill='#151c25' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='254' y='85' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='600'>analizar</text>
+  <rect x='340' y='48' width='124' height='64' rx='8' fill='#151c25' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='402' y='85' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='600'>filtrar</text>
+  <rect x='488' y='48' width='238' height='64' rx='8' fill='rgba(255,110,84,0.09)' stroke='#ff6e54' stroke-width='1.5'/>
+  <text x='607' y='85' text-anchor='middle' fill='#ffd2c7' font-size='15' font-weight='600'>ventana + agregado</text>
+  <rect x='760' y='48' width='214' height='64' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='867' y='76' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>consola &middot; Kafka &middot; DB</text>
+  <text x='867' y='96' text-anchor='middle' fill='#67737f' font-size='10.5' letter-spacing='0.12em'>HUNDIR</text>
+  <path d='M192,126 L192,136 L464,136 L464,126' fill='none' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='328' y='158' text-anchor='middle' fill='#5cd6e8' font-size='12.5' font-weight='700' letter-spacing='0.1em'>APÁTRIDA</text>
+  <text x='328' y='176' text-anchor='middle' fill='#aab4bf' font-size='11.5'>sin memoria entre eventos</text>
+  <path d='M488,126 L488,136 L726,136 L726,126' fill='none' stroke='#ff6e54' stroke-width='1.5'/>
+  <text x='607' y='158' text-anchor='middle' fill='#ff6e54' font-size='12.5' font-weight='700' letter-spacing='0.1em'>CON ESTADO</text>
+  <text x='607' y='176' text-anchor='middle' fill='#aab4bf' font-size='11.5'>recuerda a través de eventos &middot; sobrevive a accidentes &rarr; L8</text>
+</svg></div>
+    <ul class="bullets reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);max-width:820px;">
+      <li><strong>Apátrida</strong> (<span class="ink-mono">map</span>, <span class="ink-mono">filter</span>): todavía no hay estado de punto de control; la reproducción en cualquier lugar da el mismo resultado.</li>
+      <li><strong>Con estado</strong> (agregaciones, uniones, sesiones): debe tomar una instantánea del estado y las compensaciones juntas para que el reinicio se reanude desde un punto consistente.</li>
+      <li>El punto de control es la única fuente de verdad que une <span class="term">compensación</span> y <span class="term">versión de estado</span>.</li>
+    </ul>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>TOPOLOGÍA</span><span>el estado es la memoria del operador</span></div>
+</section>
+
+<!-- ─── 02 · RECAP L7 ──────────────────────────────────── -->
+<section class="slide" id="s2">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Resumen &middot; lección 7</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Ser apátrida es fácil. <em>Con estado es hoy.</em></h2>
+    <div class="two-col reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);flex:unset;">
+      <div class="col">
+        <span class="col-label" style="color:var(--cyan);">Lo que hicimos</span>
+        <ul class="bullets" style="margin-top:0.2rem;">
+          <li><span class="ink-mono">map</span> / <span class="ink-mono">filter</span> / <span class="ink-mono">flatMap</span> — sin memoria entre eventos.</li>
+          <li>Agregaciones en ventanas — memoria que vivió durante una ventana y luego se eliminó.</li>
+          <li>Marcas de agua — la promesa que permitió a Spark olvidar las ventanas viejas.</li>
+        </ul>
+      </div>
+      <div class="col">
+        <span class="col-label" style="color:var(--ember);">El pivote</span>
+        <ul class="bullets hot" style="margin-top:0.2rem;">
+          <li>¿Qué pasa si la respuesta depende de <strong>toda la historia</strong> por una clave?</li>
+          <li>¿Qué pasa si el estado debe <strong>compartirse entre eventos</strong> y sobrevivir a una falla?</li>
+          <li>¿Qué pasa si el sumidero es una base de datos, no un tema de Kafka?</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      <span class="ctxt">Cada lección anterior terminaba con un número: TPS (L1), retraso de ranura (L5), retraso del consumidor (L6), <span class="ink-mono">numRowsDroppedByWatermark</span> (L7). Hoy termina con un booleano: <strong>¿pasa la prueba de matar y reiniciar?</strong></span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>RESUMEN</span><span>sin estado &rarr; con ventana &rarr; con estado</span></div>
+</section>
+
+<!-- ─── 03 · THE PROBLEM ───────────────────────────────── -->
+<section class="slide" id="s3">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker hot reveal">Hora 1 &middot; el problema central</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Un <em class="hot">conteo</em> no es como un <span class="ink-mono" style="color:var(--cyan);">filter</span>.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Un <span class="ink-mono">filter</span> es <strong style="color:var(--text);">idempotente</strong>: reenviar el mismo evento y descartarlo dos veces da la misma fila dos veces &mdash; un duplicado no hace daño. Un <span class="ink-mono">count</span> no lo es: reenviar el mismo evento y el número es incorrecto. Entonces, cuando el procesador falla después de contar 1000 eventos pero antes de escribir, el reinicio tiene exactamente dos opciones.</p>
+    <div class="two-col" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:900px;">
+      <div class="col">
+        <span class="col-label reveal step" style="color:var(--cyan);">Opción A &middot; reproducir todo</span>
+        <div class="code-block reveal step">
+          <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">escenario A: reproducir desde el evento 1</span></div>
+          <div class="code-body">estado antes del reinicio: count = 0
+lee eventos 1 &rarr; 1000
+estado después de la reproducción: count = 1000
+<span class="n">escribe count = 1000</span></div>
+        </div>
+        <div class="callout proof reveal step" style="margin-top:0.4rem;">
+          <span class="ctxt"><strong>Correcto, pero caro.</strong> La idempotencia tiene un costo aquí &mdash; cada evento se reprocesa solo para reconstruir un número.</span>
+        </div>
+      </div>
+      <div class="col">
+        <span class="col-label reveal step" style="color:var(--ember);">Opción B &middot; reanudar desde la compensación</span>
+        <div class="code-block reveal step">
+          <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">escenario B: reproducir desde la compensación 950</span></div>
+          <div class="code-body">estado antes del reinicio: count = 0  <span class="r">(¡perdido!)</span>
+lee eventos 951 &rarr; 1000
+estado después de la reproducción: count = 50
+<span class="r">escribe count = 50</span></div>
+        </div>
+        <div class="callout danger reveal step" style="margin-top:0.4rem;">
+          <span class="ctxt"><strong>Barato, pero equivocado.</strong> La compensación sobrevivió, pero el conteo no &mdash; esta vez no hay duplicado que pueda descartarse de forma segura.</span>
+        </div>
+      </div>
+    </div>
+    <div class="prompt reveal step" style="margin-top:clamp(0.4rem,1vh,0.7rem);">
+      <span class="plabel">Pregunta para la clase</span>
+      <span class="pcmd" style="display:block;">A 100k eventos/segundo, ¿la reproducción completa (A) siquiera es viable &mdash; y si no, ¿qué debe ser cierto del sumidero para que una reanudación barata (B) también sea correcta?</span>
+    </div>
+    <div class="callout danger reveal step takeaway" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt"><strong>La conclusión:</strong> los filtros sobreviven a la repetición gratis porque son idempotentes. Los conteos no &mdash; ahora tienes dos cosas que mantener sincronizadas: <strong>posición en el flujo de entrada</strong> y <strong>cómputo acumulado</strong>. Lo barato y lo correcto solo suceden si un punto de control los une.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>COMPENSACIÓN + ESTADO</span><span>deben avanzar juntos</span></div>
+</section>
+
+
+<!-- ─── 05 · ESCALATION OF STATE ───────────────────────── -->
+<section class="slide" id="s5">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hora 1 &middot; operaciones con estado</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Si el conteo es dif&iacute;cil, &iquest;qu&eacute; es <em>m&aacute;s dif&iacute;cil?</em></h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <thead><tr><th>Operaci&oacute;n</th><th>Qu&eacute; recuerda</th><th>Por qu&eacute; es dif&iacute;cil</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ink-mono">reducible aggregates</span></td><td>uno o unos pocos valores por clave</td><td>f&aacute;cil, pero igual debe pasar por un punto de control y reproducirse</td></tr>
+        <tr><td><span class="ink-mono">bounded top-N / percentiles</span></td><td>un b&uacute;fer peque&ntilde;o y acotado por clave</td><td>acotado por N, pero los rankings pueden ser inestables entre reproducciones</td></tr>
+        <tr><td><span class="ink-mono">stream-table join</span></td><td>el valor m&aacute;s reciente por clave en la &ldquo;tabla&rdquo;</td><td>el lado tabla se actualiza; instant&aacute;neo vs eventual</td></tr>
+        <tr><td><span class="ink-mono">stream-stream join</span></td><td>eventos en b&uacute;fer de ambos flujos</td><td>ambos lados sin l&iacute;mite; estado &prop; tama&ntilde;o de la ventana</td></tr>
+      </tbody>
+    </table>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">El pr&aacute;ctico de hoy es un <strong>stream-table join</strong>: transacciones enriquecidas con un tema de clientes compactado. Los dem&aacute;s son conceptualmente el mismo problema &mdash; estado que debe pasar por un punto de control y reproducirse de forma consistente. Incluso los promedios simples tienen estado; el hilo com&uacute;n es necesitar eventos pasados para procesar el actual.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>OPERACIONES CON ESTADO</span><span>conteo &middot; top-N &middot; table join &middot; stream-stream</span></div>
+</section>
+
+<!-- ─── 06 · RUNNING AGGREGATE ─────────────────────────── -->
+<section class="slide" id="s6">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hora 1 &middot; el comp&aacute;s que falta</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Un flujo de eventos, un <em>total acumulado.</em></h2>
+    <div class='arch reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 900 220' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='Total acumulado: las transacciones alimentan un operador de agregado que mantiene totales por cliente en un almac&eacute;n de estado. El almac&eacute;n de estado debe pasar por un punto de control y reproducirse al recuperarse.'>
+  <defs>
+    <marker id='l8arrow-total' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <rect x='40' y='80' width='200' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='140' y='110' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>transactions</text>
+  <text x='140' y='130' text-anchor='middle' fill='#67737f' font-size='11'>(flujo)</text>
+  <line x1='240' y1='110' x2='330' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-total)'/>
+  <circle cx='380' cy='110' r='22' fill='#1a222d' stroke='#5cd6e8' stroke-width='2'/>
+  <text x='380' y='117' text-anchor='middle' fill='#5cd6e8' font-size='20' font-weight='700'>Σ</text>
+  <rect x='340' y='150' width='80' height='32' rx='4' fill='#1a222d' stroke='#5cd6e8' stroke-width='1'/>
+  <text x='380' y='171' text-anchor='middle' fill='#67737f' font-size='10'>estado: suma por clave</text>
+  <line x1='402' y1='110' x2='560' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-total)'/>
+  <rect x='570' y='80' width='240' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='690' y='115' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>totales</text>
+  <text x='450' y='206' text-anchor='middle' fill='#67737f' font-size='12'>un filter no necesita memoria; un total acumulado no puede recuperarse solo a partir del flujo</text>
+</svg></div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">Incluso <strong>sum(amount) por cliente</strong> tiene estado. El total acumulado vive en el almac&eacute;n de estado y debe pasar por un punto de control en cada microlote. Si el trabajo muere a mitad de ventana, el trabajo reiniciado debe reanudar desde exactamente el mismo total, no desde cero.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>TOTAL ACUMULADO</span><span>almac&eacute;n de estado + punto de control</span></div>
+</section>
+
+<!-- ─── 07 · STREAM-TABLE JOIN ─────────────────────────── -->
+<section class="slide" id="s6">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hora 1 &middot; la uni&oacute;n pr&aacute;ctica</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Un flujo de eventos, un tema de Kafka como tabla.</h2>
+    <div class='arch reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 900 220' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='Stream-table join: el flujo de transacciones y el tema compactado de clientes se unen por customer_id, produciendo enriched_transactions. El tema compactado es una tabla mutable que puede reconstruirse a partir del log.'>
+  <defs>
+    <marker id='l8arrow-join' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <rect x='40' y='55' width='200' height='50' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='140' y='75' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>transactions</text>
+  <text x='140' y='95' text-anchor='middle' fill='#67737f' font-size='11'>(flujo)</text>
+  <rect x='40' y='120' width='200' height='50' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='140' y='140' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>customers</text>
+  <text x='140' y='160' text-anchor='middle' fill='#67737f' font-size='11'>(compactado)</text>
+  <line x1='240' y1='80' x2='350' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-join)'/>
+  <line x1='240' y1='145' x2='350' y2='115' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-join)'/>
+  <circle cx='380' cy='110' r='22' fill='#1a222d' stroke='#5cd6e8' stroke-width='2'/>
+  <text x='380' y='117' text-anchor='middle' fill='#5cd6e8' font-size='20' font-weight='700'>⋈</text>
+  <line x1='402' y1='110' x2='560' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-join)'/>
+  <text x='480' y='100' text-anchor='middle' fill='#5cd6e8' font-size='12'>uni&oacute;n por customer_id</text>
+  <rect x='570' y='80' width='240' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='690' y='115' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>enriched_transactions</text>
+  <text x='450' y='186' text-anchor='middle' fill='#67737f' font-size='12'>tema compactado = Kafka conserva solo el valor m&aacute;s reciente por clave</text>
+  <text x='450' y='206' text-anchor='middle' fill='#67737f' font-size='12'>= una tabla mutable que puede reconstruirse a partir del log</text>
+</svg></div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">El camino recomendado es un <strong>stream-static join</strong>: cargar el tema compactado de clientes como una instant&aacute;nea cuando arranca la app de Spark. Las actualizaciones de clientes despu&eacute;s del arranque se ignoran hasta que la app se reinicia. Esto es aceptable para datos de referencia que cambian lentamente.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>STREAM-TABLE JOIN</span><span>tema compactado = tabla mutable</span></div>
+</section>
+
+<!-- ─── 07 · STATE BACKENDS ────────────────────────────── -->
+<section class="slide" id="s7">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hora 1 &middot; d&oacute;nde vive el estado</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">El estado tiene que vivir <em>en alg&uacute;n lado.</em></h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <thead><tr><th>Motor</th><th>Por defecto</th><th>Estado grande</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ink-mono">Flink</span></td><td>heap de la JVM</td><td>RocksDB (LSM-tree, vuelca a disco)</td></tr>
+        <tr><td><span class="ink-mono">Spark Streaming</span></td><td>almac&eacute;n de estado compatible con HDFS/S3</td><td>disco local en modo standalone; HDFS/S3 en cl&uacute;ster</td></tr>
+      </tbody>
+    </table>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">En cada microlote, Spark lee la versi&oacute;n anterior del estado, aplica el lote, escribe una nueva versi&oacute;n del estado y confirma la compensaci&oacute;n. La nueva versi&oacute;n del estado es tan durable como el almac&eacute;n donde se escribe; en nuestro laboratorio es un directorio local, en producci&oacute;n es HDFS o S3.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>D&Oacute;NDE VIVE EL ESTADO</span><span>heap &middot; RocksDB &middot; almac&eacute;n de estado</span></div>
+</section>
+
+<!-- ─── 08 · CHECKPOINTING ─────────────────────────────── -->
+<section class="slide" id="s8">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hora 1 &middot; tolerancia a fallas</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Punto de control = instant&aacute;nea de <em>compensaci&oacute;n</em> + <em>estado</em>.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:740px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">un microlote</span></div>
+      <div class="code-body">1. lee el estado anterior (del almac&eacute;n de puntos de control)
+2. procesa el nuevo microlote
+3. escribe el estado actualizado como una nueva versi&oacute;n
+4. escribe la salida en el sumidero
+5. confirma la compensaci&oacute;n en el punto de control
+
+<span class="cm"># &iquest;falla entre 4 y 5? al reiniciar se reproduce el mismo lote</span>
+<span class="cm"># misma versi&oacute;n de estado + misma compensaci&oacute;n = resultado determinista</span></div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt"><strong>Procesamiento exactamente una vez</strong> dentro de Spark: fuente reproducible (Kafka) + estado con punto de control + procesamiento determinista = tras la recuperaci&oacute;n, el estado interno es id&eacute;ntico al que habr&iacute;a sido sin la falla.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>PUNTO DE CONTROL</span><span>compensaci&oacute;n + versi&oacute;n de estado</span></div>
+</section>
+
+<!-- ─── 09 · PROCESSING VS DELIVERY ────────────────────── -->
+<section class="slide deep" id="s9" data-speaker="Esta es la lecci&oacute;n cr&iacute;tica: el procesamiento exactamente una vez es una propiedad del motor, no de la entrega. El sumidero sigue viendo duplicados a menos que sea idempotente o transaccional. El resto de la clase trata de c&oacute;mo hacer inofensivo el duplicado.">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker hot reveal">Hora 1 &middot; la brecha cr&iacute;tica</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Procesamiento <em>exactamente una vez</em> ≠ entrega <em>exactamente una vez.</em></h2>
+    <div class='arch reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 900 220' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='El procesamiento exactamente una vez ocurre dentro de Spark: el estado con punto de control es determinista. La entrega es al menos una vez, as&iacute; que el sumidero Postgres puede recibir duplicados.'>
+  <defs>
+    <marker id='l8arrow-gap' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+    <marker id='l8arrow-gap-warn' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#ff6e54'/>
+    </marker>
+  </defs>
+  <rect x='50' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='130' y='75' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>Kafka</text>
+  <text x='130' y='96' text-anchor='middle' fill='#67737f' font-size='11'>fuente reproducible</text>
+  <rect x='370' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='450' y='75' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>Spark</text>
+  <text x='450' y='96' text-anchor='middle' fill='#67737f' font-size='11'>estado con punto de control</text>
+  <rect x='690' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='770' y='75' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>Postgres</text>
+  <text x='770' y='96' text-anchor='middle' fill='#67737f' font-size='11'>sumidero externo</text>
+  <line x1='210' y1='80' x2='360' y2='80' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-gap)'/>
+  <text x='285' y='72' text-anchor='middle' fill='#5cd6e8' font-size='12'>reproducible</text>
+  <line x1='530' y1='80' x2='680' y2='80' stroke='#ff6e54' stroke-width='2' marker-end='url(#l8arrow-gap-warn)'/>
+  <text x='605' y='72' text-anchor='middle' fill='#ff6e54' font-size='12'>al menos una vez</text>
+  <text x='130' y='150' text-anchor='middle' fill='#5cd6e8' font-size='12'>procesamiento exactamente una vez</text>
+  <text x='450' y='150' text-anchor='middle' fill='#5cd6e8' font-size='12'>estado determinista</text>
+  <text x='770' y='150' text-anchor='middle' fill='#ff6e54' font-size='12'>el sumidero puede recibir duplicados</text>
+</svg></div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">Spark puede fallar despu&eacute;s de escribir en Postgres pero antes de confirmar el punto de control. Al reiniciar reproduce el lote y escribe las mismas filas <strong>otra vez</strong>. La salida de Postgres ahora tiene duplicados. La garant&iacute;a de Spark se detiene en el l&iacute;mite del sumidero.</span>
+    </div>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>LA BRECHA</span><span>el procesamiento se detiene en el sumidero</span></div>
+</section>
+
+<!-- ─── 10 · TWO GENERALS ──────────────────────────────── -->
+<section class="slide" id="s10" data-speaker="Problema de los dos generales: Akkoyunlu, Ekanadham &amp; Huber (1975), y Tanenbaum &amp; Van Steen, Distributed Systems. Imposibilidad FLP: Fischer, Lynch &amp; Paterson, JACM 1985. El problema de los dos generales es el argumento directo aqu&iacute; (canal con p&eacute;rdidas, mensajes finitos); FLP es el resultado m&aacute;s amplio de consenso as&iacute;ncrono.">
+  <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(92vw,860px);margin:0 auto;">
+    <div class="kicker reveal" style="color:var(--ember);">La imposibilidad</div>
+    <div class="big-q reveal" style="margin-top:0.8rem;text-align:center;max-width:24ch;">Dos sistemas independientes no pueden <em style="color:var(--ember);font-style:normal;">acordar at&oacute;micamente.</em></div>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:620px;">El problema de los dos generales prueba que ning&uacute;n protocolo finito puede garantizar que Spark y Postgres confirmen el mismo resultado sobre un canal no confiable. El verdadero exactamente-una-vez de extremo a extremo es imposible en el caso general.</p>
+    <div class="callout proof reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);text-align:left;">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">La soluci&oacute;n pr&aacute;ctica no es resolver el problema imposible. Es <strong>hacer desaparecer la consecuencia del duplicado</strong>: escribe la misma fila dos veces, y el resultado es el mismo que escribirla una vez. Eso es el sumidero idempotente.</span>
+    </div>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:620px;font-size:clamp(0.6rem,1vw,0.78rem);color:var(--muted);">
+      Referencias: Akkoyunlu, Ekanadham &amp; Huber (1975); Fischer, Lynch &amp; Paterson (1985)
+    </p>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>LOS DOS GENERALES</span><span>sin commit at&oacute;mico entre sistemas</span></div>
+</section>
+
+<!-- ─── 11 · THE IDEMPOTENT SINK ─────────────────────── -->
+<section class="slide" id="s11">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Hora 1 &middot; la respuesta pr&aacute;ctica</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Haz que el duplicado sea <em>inofensivo.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">Si el sumidero puede aceptar la misma fila dos veces y terminar con la misma respuesta, la tuber&iacute;a es <strong>efectivamente exactamente una vez</strong>. La implementaci&oacute;n es un upsert por clave primaria.</p>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">el sumidero idempotente de Postgres</span></div>
+      <div class="code-body">INSERT INTO enriched_transactions
+    (transaction_id, customer_id, amount, ...)
+VALUES (...)
+ON CONFLICT (transaction_id) DO UPDATE SET
+    amount = EXCLUDED.amount,
+    customer_id = EXCLUDED.customer_id,
+    ...</div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">La misma transacci&oacute;n escrita dos veces produce la misma fila. La base de datos devuelve &eacute;xito las dos veces, pero la respuesta no cambia. La falla ya no es un problema de correcci&oacute;n.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>SUMIDERO IDEMPOTENTE</span><span>ON CONFLICT &middot; la misma fila dos veces = una vez</span></div>
+</section>
+
+<!-- ─── 12 · EFFECTIVELY EXACTLY-ONCE ──────────────────── -->
+<section class="slide" id="s12">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Hora 1 &middot; la cadena</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">De extremo a extremo, tan fuerte como el <em>eslab&oacute;n m&aacute;s d&eacute;bil.</em></h2>
+    <div class='arch reveal' style='margin-top:clamp(0.6rem,1.5vh,1rem);padding:clamp(0.9rem,2vh,1.5rem) clamp(0.9rem,1.6vw,1.4rem);'>
+<svg viewBox='0 0 900 220' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='La cadena efectivamente exactamente una vez: Kafka es reproducible, Spark tiene estado con punto de control y reproducci&oacute;n determinista, Postgres tiene un upsert idempotente. El resultado es sin p&eacute;rdidas y sin duplicados tras la recuperaci&oacute;n.'>
+  <defs>
+    <marker id='l8arrow-chain' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <rect x='30' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='110' y='75' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>Kafka</text>
+  <text x='110' y='96' text-anchor='middle' fill='#67737f' font-size='11'>reproducible</text>
+  <rect x='370' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='450' y='75' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>Spark</text>
+  <text x='450' y='96' text-anchor='middle' fill='#67737f' font-size='11'>estado con punto de control</text>
+  <rect x='710' y='50' width='160' height='60' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='790' y='75' text-anchor='middle' fill='#e7eaee' font-size='15' font-weight='700'>Postgres</text>
+  <text x='790' y='96' text-anchor='middle' fill='#67737f' font-size='11'>upsert idempotente</text>
+  <line x1='190' y1='80' x2='360' y2='80' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-chain)'/>
+  <line x1='530' y1='80' x2='700' y2='80' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-chain)'/>
+  <text x='110' y='150' text-anchor='middle' fill='#5cd6e8' font-size='12'>procesamiento exactamente una vez</text>
+  <text x='110' y='168' text-anchor='middle' fill='#5cd6e8' font-size='12'>+ reproducci&oacute;n determinista</text>
+  <text x='790' y='150' text-anchor='middle' fill='#5cd6e8' font-size='12'>escritura al menos una vez</text>
+  <text x='790' y='168' text-anchor='middle' fill='#5cd6e8' font-size='12'>+ ON CONFLICT = seguro</text>
+  <rect x='270' y='192' width='360' height='24' rx='4' fill='rgba(92,214,232,0.12)' stroke='#5cd6e8' stroke-width='1'/>
+  <text x='450' y='208' text-anchor='middle' fill='#5cd6e8' font-size='12' font-weight='700'>efectivamente exactamente una vez</text>
+</svg></div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">La cadena completa es <strong>efectivamente exactamente una vez</strong>: la fuente puede reproducirse, el procesador puede reanudar desde el punto de control, y el sumidero puede absorber duplicados. As&iacute; es como las tuber&iacute;as reales sobreviven a las fallas.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>EFECTIVAMENTE EXACTAMENTE UNA VEZ</span><span>fuente &middot; punto de control &middot; sumidero idempotente</span></div>
+</section>
+
+<!-- ─── 13 · BUILD DIVIDER ─────────────────────────────── -->
+<section class="slide deep" id="s13">
+  <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(92vw,780px);margin:0 auto;">
+    <div class="kicker reveal" style="color:var(--cyan);">Parte dos</div>
+    <h2 class="reveal" style="font-size:clamp(2rem,5.5vw,3.6rem);margin-top:0.6rem;">Constr&uacute;yelo.</h2>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:600px;">Une las transacciones con un tema de clientes compactado, env&iacute;alas a un sumidero Postgres con un upsert idempotente, y observa c&oacute;mo el directorio de puntos de control mantiene la compensaci&oacute;n y el estado sincronizados.</p>
+    <div class='arch reveal' style='margin-top:clamp(0.8rem,2vh,1.4rem);max-width:min(80vw,560px);padding:clamp(0.7rem,1.6vh,1.1rem);'>
+<svg viewBox='0 0 760 180' style='width:100%;height:auto;display:block;font-family:var(--sans)' role='img' aria-label='Constr&uacute;yelo: las transacciones alimentan un flujo de Spark, los clientes alimentan una instant&aacute;nea est&aacute;tica, y el resultado se hace upsert en Postgres.'>
+  <defs>
+    <marker id='l8arrow-build' markerWidth='9' markerHeight='9' refX='7' refY='4' orient='auto' markerUnits='userSpaceOnUse'>
+      <path d='M0,0 L8,4 L0,8 Z' fill='#5cd6e8'/>
+    </marker>
+  </defs>
+  <rect x='20' y='50' width='140' height='50' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='90' y='70' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>transactions</text>
+  <text x='90' y='88' text-anchor='middle' fill='#67737f' font-size='11'>flujo</text>
+  <rect x='20' y='115' width='140' height='50' rx='8' fill='#1a222d' stroke='#324050' stroke-width='1.5'/>
+  <text x='90' y='135' text-anchor='middle' fill='#e7eaee' font-size='14' font-weight='700'>customers</text>
+  <text x='90' y='153' text-anchor='middle' fill='#67737f' font-size='11'>instant&aacute;nea compactada</text>
+  <rect x='300' y='80' width='140' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='370' y='108' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>Spark</text>
+  <text x='370' y='128' text-anchor='middle' fill='#67737f' font-size='11'>uni&oacute;n + estado</text>
+  <rect x='600' y='80' width='140' height='60' rx='8' fill='#1a222d' stroke='#5cd6e8' stroke-width='1.5'/>
+  <text x='670' y='108' text-anchor='middle' fill='#cfe9ee' font-size='15' font-weight='700'>Postgres</text>
+  <text x='670' y='128' text-anchor='middle' fill='#67737f' font-size='11'>upsert</text>
+  <line x1='160' y1='75' x2='290' y2='100' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-build)'/>
+  <line x1='160' y1='140' x2='290' y2='115' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-build)'/>
+  <line x1='440' y1='110' x2='590' y2='110' stroke='#5cd6e8' stroke-width='2' marker-end='url(#l8arrow-build)'/>
+</svg></div>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>CONSTR&Uacute;YELO</span><span>Kafka + Postgres + PySpark</span></div>
+</section>
+
+<!-- ─── 14 · SETUP ─────────────────────────────────────── -->
+<section class="slide" id="s14">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Configuraci&oacute;n</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Un Kafka, un Postgres, un comando.</h2>
+    <div class="code-block reveal" data-copy="cd src-lesson8
+docker compose up -d
+uv sync
+uv run python src/setup_topics.py" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">shell</span></div>
+      <div class="code-body"><span class="v">$</span> cd src-lesson8
+<span class="v">$</span> docker compose up -d
+<span class="v">$</span> uv sync
+<span class="v">$</span> uv run python src/setup_topics.py
+<span class="v">$</span> uv run python src/setup_topics.py --no-reset  <span class="cm"># opcional: conserva los temas si ya existen</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">Docker Compose levanta un broker de Kafka en <span class="ink-mono">localhost:19092</span> y Postgres en <span class="ink-mono">localhost:5432</span> con la tabla <span class="ink-mono">enriched_transactions</span> lista. La primera ejecuci&oacute;n de Spark descarga los jars JDBC de Kafka y Postgres desde Maven; es lenta una vez, y queda en cach&eacute; despu&eacute;s.</span>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt"><strong>setup_topics.py reinicia por defecto</strong> &mdash; borra y recrea los temas. Si tienes un directorio <span class="ink-mono">ckpt/</span> previo, reinicia los temas <em>y</em> borra <span class="ink-mono">ckpt/</span>, o Spark reanudar&aacute; desde compensaciones obsoletas y fallar&aacute;. Usa <span class="ink-mono">--no-reset</span> para conservar los temas existentes y evitar esto.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ENTORNO</span><span>local[*] &middot; Kafka &middot; Postgres</span></div>
+</section>
+
+<!-- ─── 15 · CREATE TOPICS ─────────────────────────────── -->
+<section class="slide" id="s15">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Fase 1 &middot; setup_topics.py</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Un flujo, una tabla compactada.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">setup_topics.py</span></div>
+      <div class="code-body">transactions:  tema normal, 4 particiones
+customers:     tema compactado, 4 particiones
+  cleanup.policy = compact
+  min.cleanable.dirty.ratio = 0.01
+  segment.ms = 100
+
+<span class="cm"># compactaci&oacute;n = Kafka conserva el valor m&aacute;s reciente por customer_id</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">La compactaci&oacute;n es lo que hace que un tema de Kafka se comporte como una tabla mutable. Los registros viejos de clientes se eliminan, solo se conserva el valor m&aacute;s reciente por clave. Este es el lado de b&uacute;squeda de la uni&oacute;n.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>FASE 1</span><span>tema compactado = tabla</span></div>
+</section>
+
+<!-- ─── 16 · SEED CUSTOMERS ────────────────────────────── -->
+<section class="slide" id="s16">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Fase 2 &middot; seed_customers.py</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">1.000 clientes, y luego mantenerlos en movimiento.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">uv run python src/seed_customers.py</span></div>
+      <div class="code-body">sembrando 1.000 clientes en el tema compactado 'customers'
+luego actualizando 5 clientes cada 5s
+
+{ customer_id, name, tier, region }</div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">El generador de clientes es un proceso en segundo plano. D&eacute;jalo corriendo mientras el trabajo de Spark carga la instant&aacute;nea y el generador de transacciones se ejecuta.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>FASE 2</span><span>sembrar y actualizar clientes</span></div>
+</section>
+
+<!-- ─── 17 · SEED TRANSACTIONS ─────────────────────────── -->
+<section class="slide" id="s17">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Fase 3 &middot; seed_transactions.py</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Un flujo constante de eventos.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">uv run python src/seed_transactions.py --tps 50</span></div>
+      <div class="code-body">{ transaction_id, customer_id, amount, currency, transaction_time }
+
+producido a 50 transacciones/seg, con clave customer_id</div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">El generador de transacciones registra el total producido en <span class="ink-mono">data/produced.json</span> para que <span class="ink-mono">verify.py</span> pueda comparar el conteo del sumidero con el conteo de la fuente.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>FASE 3</span><span>flujo de transacciones</span></div>
+</section>
+
+<!-- ─── 18 · STREAM-STATIC JOIN ────────────────────────── -->
+<section class="slide" id="s18">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Fase 4 &middot; streaming_join.py</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Carga la instant&aacute;nea, luego transmite la uni&oacute;n.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">la uni&oacute;n en streaming</span></div>
+      <div class="code-body">transactions = read_transactions(spark, starting="earliest")
+customers = read_customers_static(spark)       # snapshot of compacted topic
+enriched = transactions.join(customers, on="customer_id", how="left")</div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">La instant&aacute;nea est&aacute;tica se carga al arrancar. El <span class="ink-mono">checkpointLocation</span> en la ruta de escritura almacena compensaciones y estado para que el trabajo pueda reiniciar desde el &uacute;ltimo microlote confirmado.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>FASE 4</span><span>stream-static join</span></div>
+</section>
+
+<!-- ─── 19 · THE UPSERT SINK ───────────────────────────── -->
+<section class="slide" id="s19">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Fase 4 &middot; el sumidero</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">El sumidero es donde la promesa se rompe o se sostiene.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">write_to_postgres (foreachBatch)</span></div>
+      <div class="code-body">def write_to_postgres(batch_df, batch_id):
+    rows = batch_df.collect()
+    with psycopg.connect(POSTGRES_URL) as conn:
+        with conn.cursor() as cur:
+            for row in rows:
+                cur.execute(upsert_sql, row)
+    conn.commit()
+
+# upsert_sql uses ON CONFLICT (transaction_id) DO UPDATE</div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">El <span class="ink-mono">transaction_id</span> es la clave primaria. La misma transacci&oacute;n puede escribirse dos veces; el resultado es el mismo. El sumidero es idempotente. Esa es la lecci&oacute;n.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>EL SUMIDERO</span><span>ON CONFLICT &middot; upsert idempotente</span></div>
+</section>
+
+<!-- ─── 20 · AGGREGATE PHASE ───────────────────────────── -->
+<section class='slide' id='s20a' data-speaker='Este es el trabajo genuinamente con estado. Las sumas acumuladas por cliente viven en el almac&eacute;n de estado, y el punto de control confirma tanto las compensaciones como el estado. La prueba de matar debe probar que las sumas son exactas, no solo el conteo de upserts.'>
+  <div class='slide-content' style='max-width:min(92vw,900px);margin:0 auto;'>
+    <div class='section-marker reveal'>Fase 5 &middot; streaming_aggregate.py</div>
+    <h2 class='reveal' style='margin-top:clamp(0.4rem,1vh,0.8rem);'>El trabajo con estado: <em>agregados por ventana.</em></h2>
+    <div class='code-block reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;'>
+      <div class='code-header'><span class='code-dot'></span><span class='code-dot'></span><span class='code-dot'></span><span class='code-label'>streaming_aggregate.py</span></div>
+      <div class='code-body'>from pyspark.sql.functions import col, count as f_count, sum as f_sum, window
+
+aggregates = (transactions
+    .withColumn('amount', col('amount').cast('decimal(12,2)'))
+    .withWatermark('transaction_time', '30 seconds')
+    .groupBy(window('transaction_time', '1 minute'), 'customer_id')
+    .agg(f_count('*').alias('txn_count'),
+         f_sum('amount').alias('total_amount')))
+
+query = (aggregates.writeStream
+    .outputMode('update')
+    .foreachBatch(write_aggregates)
+    .option('checkpointLocation', 'ckpt/aggregate')
+    .trigger(processingTime='10 seconds')
+    .start())</div>
+    </div>
+    <div class='callout note reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <svg class='ico' viewBox='0 0 24 24' fill='none' stroke='var(--cyan)' stroke-width='2' stroke-linecap='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/></svg>
+      <span class='ctxt'>Esta es una consulta <strong>verdaderamente con estado</strong>: sumas acumuladas por cliente y por minuto viven en el almac&eacute;n de estado. El punto de control confirma tanto las compensaciones como el estado. Despu&eacute;s de un <span class='term'>kill -9</span>, las sumas deben ser exactas &mdash; un upsert por s&iacute; solo no puede reparar una suma equivocada.</span>
+    </div>
+  </div>
+  <hr class='rule' style='margin-bottom:0.7rem;'>
+  <div class='meta'><span>FASE 5</span><span>almac&eacute;n de estado + marca de agua + upsert</span></div>
+</section>
+
+<!-- ─── 20 · HAPPY PATH ────────────────────────────────── -->
+<section class="slide" id="s20">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">En vivo &middot; el camino feliz</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Revisa el sumidero antes de matarlo.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">uv run python src/verify.py</span></div>
+      <div class='code-body'>Postgres rows:             1,247
+Duplicates:                0
+Missing enrichment:        0
+Produced count:            1,247
+Aggregate windows checked: 1,234
+Missing windows:           0
+Mismatched sums/counts:    0
+
+<span class='n'>✓ sin duplicados</span>
+<span class='n'>✓ todas las filas enriquecidas</span>
+<span class='n'>✓ el conteo de Postgres coincide con el producido</span>
+<span class='n'>✓ los agregados en streaming coinciden con el rec&aacute;lculo por lotes</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">Establece la l&iacute;nea base. La prueba de matar comienza una vez que el conteo de Postgres y el conteo producido coinciden y el conteo de duplicados es cero.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>CAMINO FELIZ</span><span>verifica antes de matar</span></div>
+</section>
+
+<!-- ─── 21 · KILL DIVIDER ──────────────────────────────── -->
+<section class="slide deep" id="s21">
+  <div class="slide-content" style="align-items:center;text-align:center;justify-content:center;max-width:min(92vw,780px);margin:0 auto;">
+    <div class="kicker reveal" style="color:var(--ember);">Parte tres</div>
+    <h2 class="reveal" style="font-size:clamp(2rem,5.5vw,3.6rem);margin-top:0.6rem;">M&aacute;talo.</h2>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);max-width:600px;">La prueba de pasa/falla. Mata en fr&iacute;o cualquiera de los dos controladores de Spark mientras el generador de transacciones sigue corriendo. Reinicia el trabajo con el mismo punto de control. Demuestra que los conteos de la uni&oacute;n, las sumas del agregado y los conteos de duplicados siguen en cero.</p>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>MATAR Y REINICIAR</span><span>kill -9 &middot; reiniciar &middot; verificar</span></div>
+</section>
+
+<!-- ─── 22 · KILL PROTOCOL ─────────────────────────────── -->
+<section class="slide" id="s22" data-speaker="Demu&eacute;stralo en vivo. Corre ambos trabajos, muestra que verify.py pasa, luego mata con kill -9 un controlador. Muestra que el generador de transacciones sigue, reinicia, y corre verify.py otra vez. Los conteos y las sumas deben coincidir y los duplicados deben ser cero.">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker hot reveal">Ruptura 01 &middot; el protocolo</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">C&oacute;rrelo, m&aacute;talo, rein&iacute;cialo, demu&eacute;stralo.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">protocolo de matar y reiniciar</span></div>
+      <div class="code-body">1. corre verify.py y registra los conteos de uni&oacute;n y agregado (antes de matar)
+2. busca el PID del controlador de Spark: ps aux | grep lesson8-stateful
+3. kill -9 &lt;pid&gt;
+4. deja el generador de transacciones corriendo 60s
+5. reinicia: uv run python src/streaming_join.py
+   (o uv run python src/streaming_aggregate.py)
+6. espera a que se ponga al d&iacute;a, corre verify.py otra vez</div>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">Usa <span class="term">kill -9</span>, no <span class="term">kill -15</span>. Un SIGTERM deja que el controlador de Spark termine el microlote actual limpiamente, ocultando el comportamiento al-menos-una-vez que la prueba est&aacute; dise&ntilde;ada para exponer.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>PROTOCOLO</span><span>kill -9 &middot; mismo punto de control</span></div>
+</section>
+
+<!-- ─── 23 · FAILURE MODES ─────────────────────────────── -->
+<section class="slide" id="s23">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">Ruptura 01 &middot; modos de falla</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">&iquest;Qu&eacute; puede salir mal?</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <thead><tr><th>Falla</th><th>S&iacute;ntoma</th><th>Causa</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ink-mono">duplicates</span></td><td>verify.py: duplicates > 0</td><td>el sumidero no es idempotente</td></tr>
+        <tr><td><span class="ink-mono">missing rows</span></td><td>postgres count &lt; produced</td><td>punto de control perdido o startingOffsets incorrecto</td></tr>
+        <tr><td><span class="ink-mono">missing enrichment</span></td><td>customer_name es null</td><td>instant&aacute;nea de clientes cargada antes de sembrar</td></tr>
+        <tr><td><span class="ink-mono">checkpoint error</span></td><td>Spark se niega a arrancar</td><td>dos consultas compartieron el mismo directorio de puntos de control</td></tr>
+        <tr><td><span class="ink-mono">aggregate mismatch</span></td><td>customer_activity sums != expected</td><td>marca de agua demasiado baja o estado perdido</td></tr>
+        <tr><td><span class="ink-mono">no failure shown</span></td><td>duplicates stay 0</td><td>usaste kill -15 en vez de kill -9</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>MODOS DE FALLA</span><span>qu&eacute; depurar</span></div>
+</section>
+
+<!-- ─── 24 · WITHOUT UPSERT ────────────────────────────── -->
+<section class="slide" id="s24">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker hot reveal">Ruptura 02 &middot; quita el upsert</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Quita <em class="hot">ON CONFLICT</em> y corre la prueba otra vez.</h2>
+    <div class="code-block reveal spoiler" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:760px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">INSERT simple, luego kill -9</span></div>
+      <div class="code-body">INSERT INTO enriched_transactions (transaction_id, ...)
+VALUES (...)  -- no ON CONFLICT
+
+despu&eacute;s de matar y reiniciar:
+Duplicates: 17
+Postgres count: 1,564 > produced 1,547  # imposible sin upsert</div>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">Los duplicados corresponden al microlote parcialmente escrito en el momento de matar el proceso. Esto es exactamente el comportamiento al-menos-una-vez que el upsert idempotente oculta. La diferencia entre una demo y producci&oacute;n es una l&iacute;nea de SQL.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>SIN UPSERT</span><span>aparecen duplicados</span></div>
+</section>
+
+<!-- ─── 25 · SYNTHESIS ─────────────────────────────────── -->
+<section class="slide" id="s25">
+  <div class="slide-content" style="max-width:min(92vw,920px);margin:0 auto;">
+    <div class="section-marker reveal">S&iacute;ntesis</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Los tres requisitos.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <thead><tr><th>Requisito</th><th>Provisto por</th><th>C&oacute;mo falla</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ink-mono">fuente reproducible</span></td><td>log de Kafka + compensaciones del consumidor</td><td>retenci&oacute;n del tema demasiado corta</td></tr>
+        <tr><td><span class="ink-mono">puntos de control</span></td><td>almac&eacute;n de estado de Spark + compensaciones</td><td>directorio de puntos de control compartido, o borrado</td></tr>
+        <tr><td><span class="ink-mono">sumidero idempotente</span></td><td>Postgres ON CONFLICT</td><td>falta la clave primaria, sin upsert</td></tr>
+      </tbody>
+    </table>
+    <div class="callout proof reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="ctxt">Rompe cualquiera de los tres y la prueba de matar y reiniciar falla. El <strong>sumidero idempotente</strong> es el que m&aacute;s se olvida, porque el motor y la fuente son tan buenos que ocultan el problema hasta que el sumidero se satura o el proceso muere a mitad de lote.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>S&Iacute;NTESIS</span><span>fuente &middot; punto de control &middot; sumidero</span></div>
+</section>
+
+<!-- ─── 26 · TRUE EXACTLY-ONCE ─────────────────────────── -->
+<section class="slide" id="s26">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">S&iacute;ntesis &middot; la alternativa</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">La &uacute;nica forma de lograr un <em>verdadero</em> exactamente-una-vez: 2PC.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:740px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">confirmaci&oacute;n en dos fases</span></div>
+      <div class="code-body">1. prepare: todos los participantes votan "s&iacute;, puedo confirmar"
+2. commit: todos los participantes deben confirmar
+3. si alg&uacute;n participante no est&aacute; seguro, el coordinador se bloquea
+
+<span class="cm"># lento, fr&aacute;gil, exige mucha coordinaci&oacute;n — y a&uacute;n tiene una ventana de falla</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">La confirmaci&oacute;n en dos fases es la respuesta te&oacute;rica, pero es lenta y operativamente fr&aacute;gil. La mayor&iacute;a de los sistemas en producci&oacute;n prefieren sumideros idempotentes: m&aacute;s simples, m&aacute;s r&aacute;pidos, y <strong>suficientemente buenos</strong> porque el resultado es el mismo.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>2PC</span><span>exactamente-una-vez real, evitado en la pr&aacute;ctica</span></div>
+</section>
+
+<!-- ─── 27 · WHAT'S NEXT ───────────────────────────────── -->
+<section class="slide deep" id="s27">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker hot reveal">Qu&eacute; sigue</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Del microlote al <em class="hot">streaming verdadero.</em></h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Spark Structured Streaming es un motor de microlotes. El modelo de puntos de control y estado es s&oacute;lido, pero la latencia est&aacute; acotada por el intervalo del lote. La Lecci&oacute;n 9 pasa a Flink: procesamiento registro-a-registro, marcas de agua de tiempo de evento, y las mismas garant&iacute;as de exactamente-una-vez con menor latencia.</p>
+    <div class="callout note reveal" style="margin-top:clamp(0.7rem,1.6vh,1.1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--ember)" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="ctxt">La parte dif&iacute;cil no desaparece. Estado, puntos de control y sumideros idempotentes siguen siendo la respuesta. El motor solo cambia el tama&ntilde;o del lote de segundos a eventos.</span>
+    </div>
+  </div>
+  <div class="meta" style="position:absolute;bottom:clamp(0.8rem,2vh,1.4rem);left:0;right:0;padding:0 clamp(1.4rem,5vw,4.5rem);"><span>QU&Eacute; SIGUE</span><span>Flink &middot; registro-a-registro &middot; menor latencia</span></div>
+</section>
+
+<!-- ─── 28 · TAKE-HOME ─────────────────────────────────── -->
+<section class="slide" id="s28">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="section-marker reveal">Trabajo para casa</div>
+    <h2 class="reveal" style="margin-top:clamp(0.4rem,1vh,0.8rem);">Entrega la prueba de matar.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:720px;">Un repositorio que corre la tuber&iacute;a de la Lecci&oacute;n 8 y sobrevive a un <span class="term">kill -9</span> con cero duplicados y cero p&eacute;rdidas.</p>
+    <ul class="bullets reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);max-width:780px;">
+      <li><strong>Tema compactado de clientes</strong> y la uni&oacute;n por instant&aacute;nea al arrancar.</li>
+      <li><strong>Sumideros Postgres idempotentes</strong> tanto para <span class="ink-mono">enriched_transactions</span> como para <span class="ink-mono">customer_activity</span>.</li>
+      <li><strong>Agregado en streaming</strong> que mantiene sumas acumuladas en el almac&eacute;n de estado.</li>
+      <li><strong>Prueba de matar y reiniciar</strong> en el README: los conteos antes de matar y despu&eacute;s de reiniciar coinciden, duplicados = 0, sumas del agregado = 0.</li>
+      <li><strong>AGENTS.md</strong> explicando la arquitectura y los tropiezos comunes.</li>
+    </ul>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="ctxt">El evaluador arranca la tuber&iacute;a, la deja correr unos minutos, mata en fr&iacute;o el controlador de Spark, lo reinicia, y corre <span class="ink-mono">verify.py</span>. La salida debe mostrar exactamente el mismo n&uacute;mero de filas que las producidas, cero duplicados y cero discrepancias en el agregado.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ENTREGABLE</span><span>prueba de matar y reiniciar</span></div>
+</section>
+
+<!-- ─── 29 · ANNEX · RUN IT ────────────────────────────── -->
+<section class="slide" id="s29">
+  <div class="slide-content" style="max-width:min(92vw,880px);margin:0 auto;">
+    <div class="kicker reveal">Anexo</div>
+    <h2 class="reveal" style="margin-top:clamp(0.3rem,0.8vh,0.6rem);">C&oacute;rrelo t&uacute; mismo.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);flex:unset;max-width:780px;">
+      <div class="code-header"><span class="code-dot"></span><span class="code-dot"></span><span class="code-dot"></span><span class="code-label">de extremo a extremo</span></div>
+      <div class="code-body"><span class="v">$</span> docker compose up -d
+<span class="v">$</span> uv run python src/setup_topics.py
+<span class="v">$</span> uv run python src/seed_customers.py
+<span class="v">$</span> uv run python src/seed_transactions.py --tps 50
+<span class="v">$</span> uv run python src/streaming_join.py
+<span class="v">$</span> uv run python src/streaming_aggregate.py
+<span class="v">$</span> uv run python src/verify.py
+<span class="v">$</span> # en otra terminal, mata con kill -9 el controlador de Spark, luego reinicia</div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      <span class="ctxt">Reinicio: borra el directorio <span class="ink-mono">ckpt/</span> para reiniciar desde <span class="ink-mono">earliest</span>. Cada consulta de Spark debe tener su propio directorio de puntos de control.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ANEXO &middot; EJECUTAR</span><span>uv run python src/&lt;script&gt;</span></div>
+</section>
+
+<!-- ─── 30 · ANNEX · OPENCODE PROMPTS ──────────────────── -->
+<section class="slide" id="s30">
+  <div class="slide-content" style="max-width:min(92vw,880px);margin:0 auto;">
+    <div class="kicker reveal">Anexo &middot; IA en el bucle</div>
+    <h2 class="reveal" style="margin-top:clamp(0.3rem,0.8vh,0.6rem);">Prompts para esta tuber&iacute;a.</h2>
+    <p class="sub reveal" style="margin-top:0.4rem;max-width:700px;">Deja que <span class="ink-mono">opencode</span> redacte el c&oacute;digo repetitivo; t&uacute; eres due&ntilde;o del punto de control, la sem&aacute;ntica de la uni&oacute;n y el sumidero idempotente.</p>
+    <div class="prompt reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <span class="plabel">tuber&iacute;a</span>
+      <span class="pcmd">Escribe un trabajo de PySpark Structured Streaming que lea transacciones de Kafka, las una con un tema compactado de clientes cargado como instant&aacute;nea por lotes, y escriba en una tabla de Postgres usando un upsert idempotente con ON CONFLICT. Usa checkpointLocation ckpt/join.</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.4rem,1vh,0.7rem);">
+      <span class="plabel">verificar</span>
+      <span class="pcmd">Escribe verify.py que cuente enriched_transactions, cuente duplicados por transaction_id, cuente filas con customer_name nulo, y compare el total con data/produced.json.</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.4rem,1vh,0.7rem);">
+      <span class="plabel">agregado</span>
+      <span class="pcmd">Escribe un segundo trabajo de PySpark Structured Streaming que lea el mismo tema de transacciones, calcule txn_count y total_amount por cliente y por minuto con una marca de agua de 30 segundos, y haga upsert en una tabla Postgres customer_activity usando ON CONFLICT (customer_id, window_start). Usa checkpointLocation ckpt/aggregate.</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.4rem,1vh,0.7rem);">
+      <span class="plabel">prueba de matar</span>
+      <span class="pcmd">Escribe un script que corra el trabajo de Spark, espere a que ingiera algunas transacciones, env&iacute;e kill -9 al controlador, espere, lo reinicie, y verifique que verify.py siga mostrando duplicates = 0 y que el conteo de Postgres coincida con el producido.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ANEXO &middot; OPENCODE</span><span>redacta el c&oacute;digo repetitivo &middot; t&uacute; eres due&ntilde;o de la sem&aacute;ntica</span></div>
+</section>
+
+<!-- ─── 31 · ANNEX · SCRIPTS ───────────────────────────── -->
+<section class="slide" id="s31">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="kicker reveal">Anexo</div>
+    <h2 class="reveal" style="margin-top:clamp(0.3rem,0.8vh,0.6rem);">Cada script de esta lecci&oacute;n.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.5rem,1.2vh,0.9rem);">
+      <thead><tr><th>Script</th><th>Qu&eacute; hace</th><th>Diapositiva</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ink-mono">setup_topics.py</span></td><td>Crea transactions y customers compactado</td><td>15</td></tr>
+        <tr><td><span class="ink-mono">seed_customers.py</span></td><td>Siembra 1.000 clientes y actualiza 5 cada 5s</td><td>16</td></tr>
+        <tr><td><span class="ink-mono">seed_transactions.py</span></td><td>Genera el flujo de transacciones, registra el conteo producido</td><td>17</td></tr>
+        <tr><td><span class="ink-mono">streaming_join.py</span></td><td>Stream-static join + upsert idempotente</td><td>18–19</td></tr>
+        <tr><td><span class="ink-mono">streaming_aggregate.py</span></td><td>Agregado por ventana por cliente + upsert idempotente</td><td>20a</td></tr>
+        <tr><td><span class="ink-mono">verify.py</span></td><td>Verificaciones de conteo, duplicados, enriquecimiento y agregado</td><td>21</td></tr>
+      </tbody>
+    </table>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.4vh,1rem);">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+      <span class="ctxt">Todo bajo <span class="ink-mono">src-lesson8/src/</span>. El mismo esquema que las lecciones anteriores: <span class="ink-mono">docker compose up -d</span>, luego <span class="ink-mono">uv run python src/&lt;script&gt;.py</span>.</span>
+    </div>
+  </div>
+  <hr class="rule" style="margin-bottom:0.7rem;">
+  <div class="meta"><span>ANEXO &middot; SCRIPTS</span><span>src-lesson8/src/</span></div>
+</section>
+
+<!-- ─── 32 · ANNEX · STREAM-TABLE VS STREAM-STREAM ─────── -->
+<section class='slide' id='s32' data-speaker='Enfatiza que la demo es stream-table, no stream-stream. Stream-table es el patr&oacute;n correcto para datos de referencia que cambian lentamente. Stream-stream es mucho m&aacute;s dif&iacute;cil porque ambos lados no tienen l&iacute;mite y los eventos pueden llegar desordenados en cualquiera de los dos.'>
+  <div class='slide-content' style='max-width:min(92vw,900px);margin:0 auto;'>
+    <div class='kicker reveal'>Anexo</div>
+    <h2 class='reveal' style='margin-top:clamp(0.3rem,0.8vh,0.6rem);'>Stream-table vs stream-stream join.</h2>
+    <table class='dtable reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <thead><tr><th>Join</th><th>Lado de b&uacute;squeda</th><th>Cu&aacute;ndo usarlo</th><th>La parte dif&iacute;cil</th></tr></thead>
+      <tbody>
+        <tr><td><span class='ink-mono'>stream-table</span></td><td>tema compactado cargado como instant&aacute;nea por lotes al arrancar</td><td>dimensiones que cambian lentamente: clientes, productos, regiones</td><td>la instant&aacute;nea queda obsoleta hasta reiniciar; las actualizaciones se ignoran en tiempo de ejecuci&oacute;n</td></tr>
+        <tr><td><span class='ink-mono'>stream-stream</span></td><td>otro flujo de eventos sin l&iacute;mite</td><td>emparejar eventos que llegan en momentos distintos: pedido + env&iacute;o</td><td>ambos lados necesitan marcas de agua; la ventana de la uni&oacute;n debe estar acotada</td></tr>
+      </tbody>
+    </table>
+    <div class='callout note reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <svg class='ico' viewBox='0 0 24 24' fill='none' stroke='var(--cyan)' stroke-width='2' stroke-linecap='round'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/></svg>
+      <span class='ctxt'>La Lecci&oacute;n 8 usa un stream-table join porque el punto pedag&oacute;gico es punto de control + estado + sumidero idempotente. Agregar un stream-stream join introducir&iacute;a condiciones de intervalo y marcas de agua dobles, distrayendo del objetivo central.</span>
+    </div>
+  </div>
+  <hr class='rule' style='margin-bottom:0.7rem;'>
+  <div class='meta'><span>ANEXO &middot; JOINS</span><span>stream-table es la simplificaci&oacute;n correcta</span></div>
+</section>
+
+<!-- ─── 33 · ANNEX · DELIVERY GUARANTEES ────────────────── -->
+<section class='slide' id='s33' data-speaker='Esta es la hoja de referencia. La idea clave es que el procesamiento exactamente una vez es una propiedad del motor, pero la entrega exactamente una vez solo es posible si el sumidero es idempotente o transaccional. La lecci&oacute;n demuestra el caso pr&aacute;ctico: reproducci&oacute;n + sumidero idempotente = efectivamente una vez.'>
+  <div class='slide-content' style='max-width:min(92vw,900px);margin:0 auto;'>
+    <div class='kicker reveal'>Anexo</div>
+    <h2 class='reveal' style='margin-top:clamp(0.3rem,0.8vh,0.6rem);'>Hoja de referencia de garant&iacute;as de entrega.</h2>
+    <table class='dtable reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <thead><tr><th>Garant&iacute;a</th><th>Significado</th><th>Requiere</th></tr></thead>
+      <tbody>
+        <tr><td><span class='ink-mono'>como m&aacute;ximo una vez</span></td><td>los eventos pueden perderse, nunca duplicarse</td><td>sin reintentos; simple pero inseguro</td></tr>
+        <tr><td><span class='ink-mono'>al menos una vez</span></td><td>los eventos pueden duplicarse, nunca perderse</td><td>fuente reproducible + confirmaci&oacute;n de recepci&oacute;n</td></tr>
+        <tr><td><span class='ink-mono'>procesamiento exactamente una vez</span></td><td>el estado del motor es determinista tras la recuperaci&oacute;n</td><td>fuente reproducible + estado con punto de control + operadores deterministas</td></tr>
+        <tr><td><span class='ink-mono'>entrega efectivamente una vez</span></td><td>el resultado de extremo a extremo es como si cada evento hubiera llegado una vez</td><td>procesamiento exactamente una vez + sumidero idempotente o transaccional</td></tr>
+      </tbody>
+    </table>
+    <div class='callout proof reveal' style='margin-top:clamp(0.5rem,1.2vh,0.9rem);'>
+      <svg class='ico' viewBox='0 0 24 24' fill='none' stroke='var(--cyan)' stroke-width='2' stroke-linecap='round'><path d='M20 6 9 17l-5-5'/></svg>
+      <span class='ctxt'>La lecci&oacute;n demuestra la fila de abajo: Kafka reproducible + Spark con punto de control + Postgres idempotente = <strong>efectivamente una vez</strong>.</span>
+    </div>
+  </div>
+  <hr class='rule' style='margin-bottom:0.7rem;'>
+  <div class='meta'><span>ANEXO &middot; GARANT&Iacute;AS</span><span>efectivamente una vez = reproducci&oacute;n + sumidero idempotente</span></div>
+</section>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const bar=document.getElementById('progressBar');
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('visible');
+      const i=slides.indexOf(e.target);
+      bar.style.width=((i+1)/slides.length*100)+'%';
+    }
+  });
+},{threshold:0.5});
+slides.forEach(s=>io.observe(s));
+
+function go(n){const i=Math.max(0,Math.min(slides.length-1,n));slides[i].scrollIntoView({behavior:'smooth'});}
+function current(){
+  let best=0,bestTop=Infinity;
+  slides.forEach((s,i)=>{const t=Math.abs(s.getBoundingClientRect().top);if(t<bestTop){bestTop=t;best=i;}});
+  return best;
+}
+window.addEventListener('keydown',(e)=>{
+  if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();go(current()+1);}
+  else if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(current()-1);}
+  else if(e.key==='Home'){e.preventDefault();go(0);}
+  else if(e.key==='End'){e.preventDefault();go(slides.length-1);}
+  else if(e.key==='r'||e.key==='R'){slides[current()].querySelectorAll('.spoiler').forEach(s=>s.classList.add('revealed'));}
+});
+document.querySelectorAll('.spoiler').forEach(s=>s.addEventListener('click',()=>s.classList.add('revealed')));
+
+// Add copy-to-clipboard buttons to code blocks that have a data-copy snippet
+document.querySelectorAll('.code-block[data-copy]').forEach(block => {
+  const header = block.querySelector('.code-header');
+  if (!header) return;
+  const btn = document.createElement('button');
+  btn.className = 'code-copy';
+  btn.type = 'button';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    const text = block.getAttribute('data-copy') || '';
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'copy';
+        btn.classList.remove('copied');
+      }, 1500);
+    }).catch(() => {
+      btn.textContent = 'failed';
+      setTimeout(() => btn.textContent = 'copy', 1500);
+    });
+  });
+  header.appendChild(btn);
+});
+</script>
+
+</body>
+</html>

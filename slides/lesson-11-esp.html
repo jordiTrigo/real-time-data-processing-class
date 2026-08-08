@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lección 11 · Un pedido, siete fronteras · De extremo a extremo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   LESSON 11 — "SEVEN BOUNDARIES" DESIGN SYSTEM
+   Dark ground, mint (durable/committed) + orange (in-flight/at-risk)
+   accents, Bricolage Grotesque display, Inter body, JetBrains Mono code.
+   Structure and every class below reused verbatim from the shared
+   deck skeleton; only :root tokens + font link changed for this lesson.
+   ============================================================ */
+:root{
+  --bg:#0a0e13; --bg-deep:#06090c; --panel:#121922; --panel2:#19222d;
+  --text:#eef3f6; --soft:#b9c4cc; --muted:#8593a0;
+  --gold:#5fd3a8; --gold-soft:rgba(95,211,168,0.10); --gold-dim:rgba(95,211,168,0.22);
+  --red:#ff7a45;  --red-soft:rgba(255,122,69,0.10);  --red-dim:rgba(255,122,69,0.22);
+  --grid:rgba(95,211,168,0.045);
+  --code-bg:#0e141b;
+  --display:'Bricolage Grotesque',sans-serif; --sans:'Inter',sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  --dur:0.7s; --ease:cubic-bezier(.16,1,.3,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-snap-type:y mandatory;scroll-behavior:smooth}
+html,body{height:100%;overflow-x:hidden;background:var(--bg);color:var(--text);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+.slide{
+  width:100vw;height:100vh;height:100dvh;overflow:hidden;position:relative;scroll-snap-align:start;
+  display:flex;flex-direction:column;padding:clamp(1.3rem,3.5vw,3.3rem) clamp(1.4rem,5vw,4.5rem);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:52px 52px;
+}
+.slide-content{flex:1;display:flex;flex-direction:column;justify-content:center;max-height:100%;min-height:0;overflow:hidden}
+.slide.deep{background-color:var(--bg-deep)}
+
+.crumbs{display:flex;flex-wrap:wrap;font-family:var(--mono);font-size:clamp(0.55rem,0.92vw,0.7rem);color:var(--muted);letter-spacing:0.03em}
+.crumb{padding-right:0.8em;margin-right:0.8em;border-right:1px solid var(--gold-dim)}
+.crumb:last-child{border-right:0;margin-right:0;padding-right:0}
+.crumb.on{color:var(--text);font-weight:700;position:relative}
+.crumb.on::after{content:'';position:absolute;left:0;right:0.8em;bottom:-0.45em;height:2px;background:var(--gold)}
+
+.kicker{font-family:var(--mono);font-size:clamp(0.6rem,1vw,0.74rem);letter-spacing:0.16em;text-transform:uppercase;color:var(--muted)}
+.eyebrow{font-family:var(--mono);font-size:clamp(0.58rem,0.95vw,0.72rem);letter-spacing:0.12em;text-transform:uppercase;color:var(--gold)}
+.section-marker{display:inline-flex;align-items:center;gap:0.4rem;font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);
+  font-weight:700;text-transform:uppercase;letter-spacing:0.12em;padding-bottom:0.35rem;border-bottom:2px solid var(--gold);color:var(--gold);align-self:flex-start}
+.section-marker.hot{border-color:var(--red);color:var(--red)}
+h1{font-family:var(--display);font-weight:900;line-height:0.98;letter-spacing:-0.025em;font-size:clamp(2.5rem,7.5vw,5.6rem);color:var(--text)}
+h2{font-family:var(--display);font-weight:700;line-height:1.05;letter-spacing:-0.015em;font-size:clamp(1.55rem,4.2vw,2.9rem);color:var(--text)}
+h2 em,h1 em{font-style:italic;font-weight:700;color:var(--gold)}
+h2 em.hot,h1 em.hot{color:var(--red)}
+.sub{font-family:var(--sans);font-weight:400;font-size:clamp(0.84rem,1.5vw,1.08rem);color:var(--soft);max-width:640px;line-height:1.6}
+.lede{font-family:var(--sans);font-weight:500;font-size:clamp(0.95rem,1.8vw,1.3rem);color:var(--text);line-height:1.4}
+.label{font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted)}
+
+.term{font-family:var(--mono);font-size:0.84em;color:var(--gold);white-space:nowrap;padding:0 0.1em;border-bottom:2px solid var(--gold)}
+.term.hot{color:var(--red);border-color:var(--red)}
+.hl{background:var(--gold-soft);color:var(--gold);padding:0.04em 0.32em;border-radius:2px;font-weight:600}
+.ink-mono{font-family:var(--mono);font-size:0.88em;background:rgba(245,242,235,0.08);padding:0.05em 0.35em;border-radius:3px;color:#e7e3d8}
+
+.bullets{list-style:none;display:flex;flex-direction:column;gap:clamp(0.3rem,0.7vh,0.5rem)}
+.bullets li{font-family:var(--sans);font-size:clamp(0.74rem,1.25vw,0.94rem);color:var(--text);line-height:1.45;padding-left:1.35em;text-indent:-1.35em}
+.bullets li::before{content:'\2014';color:var(--gold);font-weight:700;margin-right:0.55em}
+.bullets.hot li::before{color:var(--red)}
+.bullets li strong{font-weight:600}
+
+/* No flex-grow: a stretching grid eats the free space that .slide-content's
+   justify-content:center needs, which pins the block to the top of the slide. */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1rem,2.5vw,2rem);flex:0 1 auto;min-height:0}
+@media(max-width:700px){.two-col{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:clamp(0.3rem,0.7vh,0.55rem);min-height:0}
+.col-label{font-family:var(--mono);font-size:clamp(0.55rem,0.85vw,0.68rem);font-weight:700;text-transform:uppercase;letter-spacing:0.06em}
+
+.big-q{font-family:var(--display);font-weight:700;font-size:clamp(1.6rem,4.4vw,3.2rem);line-height:1.12;letter-spacing:-0.02em;color:var(--text);max-width:22ch}
+
+.callout{display:flex;gap:clamp(0.4rem,0.9vw,0.65rem);padding:clamp(0.4rem,0.9vh,0.7rem) clamp(0.6rem,1.2vw,1rem);
+  border-radius:5px;border-left:3px solid;flex-shrink:0;background:var(--panel)}
+.callout .ico{flex-shrink:0;width:clamp(0.95rem,1.4vw,1.15rem);height:clamp(0.95rem,1.4vw,1.15rem);margin-top:0.05em}
+.callout .ctxt{font-family:var(--sans);font-size:clamp(0.66rem,1.1vw,0.85rem);line-height:1.5;color:var(--soft)}
+.callout .ctxt strong{color:var(--text)}
+.callout.note{border-color:var(--gold-dim)}
+.callout.danger{background:var(--red-soft);border-color:var(--red)}
+.callout.proof{background:var(--gold-soft);border-color:var(--gold)}
+
+.prompt{background:var(--code-bg);border:1px solid var(--panel2);border-left:3px solid var(--gold);border-radius:5px;padding:clamp(0.42rem,0.95vh,0.68rem) clamp(0.7rem,1.4vw,1.05rem)}
+.prompt .plabel{display:block;font-family:var(--mono);font-size:clamp(0.48rem,0.75vw,0.6rem);font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:0.3rem}
+.prompt .pcmd{display:block;font-family:var(--mono);font-size:clamp(0.6rem,1vw,0.78rem);color:#c4ccd4;line-height:1.7}
+.prompt .pcmd::before{content:'\276F  ';color:var(--gold);font-weight:700}
+
+.code-block{background:var(--code-bg);border:1px solid var(--panel2);border-radius:6px;overflow:hidden;min-height:0}
+.code-header{display:flex;align-items:center;gap:5px;padding:clamp(0.28rem,0.5vh,0.4rem) clamp(0.5rem,1vw,0.8rem);
+  background:rgba(212,165,116,0.05);border-bottom:1px solid var(--panel2)}
+.code-dot{width:7px;height:7px;border-radius:50%;background:var(--panel2)}
+.code-label{margin-left:auto;font-family:var(--mono);font-size:clamp(0.5rem,0.78vw,0.62rem);color:var(--muted)}
+.code-copy{background:var(--panel2);border:1px solid var(--gold-dim);color:var(--text);font-family:var(--mono);font-size:clamp(0.45rem,0.7vw,0.58rem);padding:0.18em 0.65em;border-radius:4px;cursor:pointer;transition:background .15s,color .15s}
+.code-copy:hover{background:var(--gold-dim);color:var(--gold)}
+.code-copy.copied{color:var(--gold)}
+.code-body{padding:clamp(0.5rem,1vh,0.85rem) clamp(0.7rem,1.3vw,1.1rem);font-family:var(--mono);
+  font-size:clamp(0.55rem,0.85vw,0.72rem);line-height:1.62;color:#c4ccd4;white-space:pre;overflow:hidden;text-align:left}
+.k{color:#7fb4e8}.s{color:#d8b478}.fn{color:#e7eaee}.v{color:#9fb6c9}
+.g{color:#d8b478}.n{color:#7fd6a4}.r{color:var(--red);font-weight:700}.cm{color:#5b6672;font-style:italic}
+.gy{color:var(--gold)}
+
+.arch{font-family:var(--mono);font-size:clamp(0.5rem,0.82vw,0.66rem);color:var(--soft);line-height:1.5;white-space:pre;
+  background:var(--panel);border:1px solid var(--panel2);border-radius:6px;padding:clamp(0.7rem,1.4vh,1.1rem) clamp(0.9rem,1.6vw,1.3rem);overflow:hidden}
+
+/* ── SVG diagrams ──────────────────────────────────────────────────────────
+   Scale with the slide via viewBox; all type is JetBrains Mono to match .arch.
+   Shared vocabulary: .dia-box = a stored thing, .dia-hit = the thing the
+   engine actually reads, .dia-skip = what it skipped, .dia-flow = movement. */
+.svg-dia{display:block;width:100%;height:auto;max-height:40vh;background:var(--panel);
+  border:1px solid var(--panel2);border-radius:6px}
+.svg-dia text{font-family:var(--mono);fill:var(--soft)}
+.svg-dia .dia-lbl{font-size:11px;fill:var(--muted);letter-spacing:0.09em}
+.svg-dia .dia-cap{font-size:11px;fill:var(--muted)}
+.svg-dia .dia-val{font-size:12px;fill:var(--soft)}
+.svg-dia .dia-key{font-size:12px;fill:var(--gold)}
+.svg-dia .dia-box{fill:var(--panel2);stroke:rgba(212,165,116,0.20);stroke-width:1}
+.svg-dia .dia-hit{fill:rgba(212,165,116,0.20);stroke:var(--gold);stroke-width:1.5}
+.svg-dia .dia-skip{fill:var(--panel2);stroke:rgba(245,242,235,0.07);stroke-width:1}
+.svg-dia .dia-flow{stroke:rgba(212,165,116,0.45);stroke-width:1.5;fill:none}
+.svg-dia .dia-tick{stroke:rgba(245,242,235,0.13);stroke-width:1}
+.svg-dia .dia-hot{fill:var(--red)}
+.svg-dia .dia-hot-s{stroke:var(--red);stroke-width:1.5;fill:none}
+
+.dtable{width:100%;border-collapse:collapse}
+.dtable th,.dtable td{font-family:var(--sans);font-size:clamp(0.62rem,1.05vw,0.84rem);
+  padding:clamp(0.22rem,0.5vh,0.42rem) clamp(0.4rem,0.9vw,0.75rem);text-align:left;border-bottom:1px solid var(--panel2)}
+.dtable th{font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:0.05em;font-size:clamp(0.5rem,0.78vw,0.62rem);color:var(--muted)}
+.dtable td.num,.dtable th.num{font-family:var(--mono);text-align:right}
+.dtable tr:last-child td{border-bottom:0}
+.dtable .hot{color:var(--red);font-weight:600}
+.dtable .cool{color:var(--gold);font-weight:600}
+
+.stat{font-family:var(--mono);font-weight:700;font-size:clamp(1.5rem,3.6vw,2.7rem);line-height:1;color:var(--text)}
+.stat.cool{color:var(--gold)}.stat.red{color:var(--red)}
+.stat-label{font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)}
+
+.flow{display:flex;align-items:center;gap:clamp(0.5rem,1vw,0.8rem);flex-wrap:wrap;margin-top:clamp(0.6rem,1.5vh,1rem)}
+.flow .box{font-family:var(--mono);font-size:clamp(0.58rem,0.95vw,0.72rem);font-weight:700;padding:clamp(0.45rem,0.9vh,0.7rem) clamp(0.7rem,1.2vw,1rem);
+  border-radius:5px;background:var(--panel2);border:1px solid var(--gold-dim);color:var(--gold)}
+.flow .arrow{font-family:var(--mono);color:var(--muted);font-size:clamp(0.7rem,1.2vw,0.9rem)}
+
+.badges{display:flex;gap:clamp(0.5rem,1vw,0.8rem);margin-top:clamp(1.2rem,2.5vh,1.8rem);flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);letter-spacing:0.08em;text-transform:uppercase;
+  padding:clamp(0.35rem,0.7vh,0.5rem) clamp(0.6rem,1.2vw,0.9rem);border-radius:3px;border:1px solid var(--gold-dim);color:var(--gold)}
+
+.progress-bar{position:fixed;top:0;left:0;height:3px;background:var(--gold);width:0%;z-index:100;transition:width .2s var(--ease)}
+.kbd-hint{position:fixed;bottom:clamp(0.6rem,1.5vh,1rem);right:clamp(0.8rem,2vw,1.5rem);font-family:var(--mono);font-size:clamp(0.5rem,0.8vw,0.62rem);color:var(--muted);z-index:100}
+
+.canary-widget{position:fixed;bottom:clamp(0.6rem,1.5vh,1rem);left:clamp(0.8rem,2vw,1.5rem);z-index:100;
+  display:flex;align-items:center;gap:0.5rem;background:var(--panel);border:1px solid var(--gold-dim);
+  border-radius:5px;padding:0.3rem 0.6rem;font-family:var(--mono);font-size:clamp(0.5rem,0.8vw,0.62rem);color:var(--muted)}
+.canary-widget label{color:var(--gold);text-transform:uppercase;letter-spacing:0.08em;font-weight:700}
+.canary-widget input,.canary-id-input{background:var(--panel2);border:1px solid var(--gold-dim);color:var(--text);
+  font-family:var(--mono);font-size:clamp(0.6rem,0.95vw,0.74rem);border-radius:4px;padding:0.15em 0.5em;width:5em;
+  text-align:center}
+.canary-widget input:focus,.canary-id-input:focus{outline:none;border-color:var(--gold)}
+.canary-id{color:var(--gold);font-weight:700}
+
+/* animations */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.visible .reveal{opacity:1;transform:translateY(0)}
+.reveal:nth-child(1){transition-delay:.05s}
+.reveal:nth-child(2){transition-delay:.12s}
+.reveal:nth-child(3){transition-delay:.19s}
+.reveal:nth-child(4){transition-delay:.26s}
+.reveal:nth-child(5){transition-delay:.33s}
+.reveal:nth-child(6){transition-delay:.40s}
+
+/* simple decorative geometry — cheap, content-agnostic. Drop 2-3 of these
+   onto any "deep" (title/divider/break/close) slide for visual texture. */
+.geo{position:absolute;pointer-events:none;z-index:0}
+.geo-circle{top:8%;right:6%;width:min(30vw,280px);height:min(30vw,280px);border:2px solid rgba(245,242,235,0.10);border-radius:50%}
+.geo-dot{bottom:10%;left:5%;width:12px;height:12px;background:var(--red);border-radius:50%;opacity:0.7}
+.geo-line{bottom:18%;left:8%;width:clamp(60px,12vw,140px);height:1px;background:rgba(245,242,235,0.10)}
+
+/* prediction spoilers — blurred until click or R (convention from L5 onward) */
+.spoiler{position:relative;cursor:pointer}
+.spoiler>*{filter:blur(9px);transition:filter .5s var(--ease)}
+.spoiler::after{content:'predict first \00b7 click or press R';position:absolute;inset:0;z-index:2;
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+  font-size:clamp(0.6rem,1vw,0.78rem);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold)}
+.spoiler.revealed>*{filter:none}
+.spoiler.revealed::after{display:none}
+
+/* break timer */
+.timer{display:flex;flex-direction:column;align-items:center;gap:0.9rem;margin-top:clamp(1.2rem,2.5vh,2rem)}
+.timer-face{cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0.35rem;padding:clamp(0.7rem,1.4vh,1.1rem) clamp(1.2rem,2vw,2rem);background:var(--panel);border:1px solid var(--gold-dim);border-radius:8px;transition:border-color .2s,box-shadow .2s}
+.timer-face:hover{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-soft)}
+.timer-disp{font-family:var(--mono);font-size:clamp(2.2rem,5.5vw,4.2rem);font-weight:700;color:var(--gold);line-height:1}
+.timer-hint{font-family:var(--mono);font-size:clamp(0.5rem,0.8vw,0.65rem);text-transform:uppercase;letter-spacing:0.12em;color:var(--muted)}
+.timer-controls{display:flex;gap:0.6rem}
+.timer-btn{font-family:var(--mono);font-size:clamp(0.55rem,0.9vw,0.7rem);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;padding:0.55em 1.1em;border:1px solid var(--gold-dim);background:var(--panel);color:var(--text);border-radius:4px;cursor:pointer;transition:background .15s,border-color .15s}
+.timer-btn:hover{background:var(--gold-soft);border-color:var(--gold);color:var(--gold)}
+.timer.running .timer-disp{color:var(--text)}
+.timer.done .timer-disp{color:var(--red);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.2s!important}html{scroll-behavior:auto}}
+@media (max-height:600px){.geo-circle,.kbd-hint{display:none}.sub{font-size:clamp(0.75rem,1.4vw,1rem)}h1{font-size:clamp(1.8rem,6vw,3rem)}h2{font-size:clamp(1.1rem,3vw,1.8rem)}}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<span class="kbd-hint">&uarr; &darr; navegar</span>
+<div class="canary-widget">
+  <label for="canaryWidgetInput">id canario</label>
+  <input type="text" id="canaryWidgetInput" class="canary-id-input" inputmode="numeric" placeholder="208" aria-label="id del canario de hoy">
+</div>
+
+<!-- ─── s01 · TITLE ─────────────────────────────────────── -->
+<section class="slide deep" id="s01" data-speaker="Abre en frío con el título. Esta es la clase cumbre: cada lección desde la Lección 1 converge hoy en un solo sistema en funcionamiento, y ninguna de las lecciones anteriores fue un ensayo para esto. Lee el subtítulo en voz alta mientras señalas la fila de flujo: Postgres, Debezium, Kafka más Schema Registry, Spark, ClickHouse, API. No expliques ninguna caja todavía — esa explicación es la lección entera. Aterriza en 'siete fronteras' — ese número es deliberado y se justificará diapositiva por diapositiva.">
+  <div class="geo geo-circle"></div>
+  <div class="geo geo-dot"></div>
+  <div class="geo geo-line"></div>
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;position:relative;z-index:1;">
+    <div class="crumbs reveal"><span class="crumb on">Lección 11</span></div>
+    <h1 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Un pedido, <em>siete fronteras</em>.</h1>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem)">OLTP &rarr; CDC &rarr; Kafka &rarr; Spark &rarr; ClickHouse &rarr; API.</p>
+    <div class="flow reveal" style="margin-top:clamp(1rem,2vh,1.5rem)">
+      <div class="box" style="font-size:0.62rem;padding:0.4rem 0.65rem">Postgres</div>
+      <span class="arrow">&rarr;</span>
+      <div class="box" style="font-size:0.62rem;padding:0.4rem 0.65rem">Debezium</div>
+      <span class="arrow">&rarr;</span>
+      <div class="box" style="font-size:0.62rem;padding:0.4rem 0.65rem">Kafka</div>
+      <span class="arrow">&rarr;</span>
+      <div class="box" style="font-size:0.62rem;padding:0.4rem 0.65rem">Schema Registry</div>
+      <span class="arrow">&rarr;</span>
+      <div class="box" style="font-size:0.62rem;padding:0.4rem 0.65rem">Spark</div>
+      <span class="arrow">&rarr;</span>
+      <div class="box" style="font-size:0.62rem;padding:0.4rem 0.65rem">ClickHouse</div>
+      <span class="arrow">&rarr;</span>
+      <div class="box" style="font-size:0.62rem;padding:0.4rem 0.65rem">API</div>
+    </div>
+    <div class="badges reveal">
+      <span class="badge">Postgres</span>
+      <span class="badge">Debezium</span>
+      <span class="badge">Kafka</span>
+      <span class="badge">Spark</span>
+      <span class="badge">ClickHouse</span>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s03 · TWO PROMISES ──────────────────────────────── -->
+<section class="slide" id="s03" data-speaker="Dos lecciones hicieron una promesa explícita, por número, que esta lección tiene que cumplir. Lee ambas citas en voz alta, despacio — son la razón por la que 'Lección 11' ha sido una broma/amenaza recurrente desde la Lección 5. Señala que la promesa de L5 nombra los schema registries específicamente, y la promesa de L8 nombra Debezium CDC específicamente, y ambas dijeron 'Lección 11' por número, no 'más adelante' o 'eventualmente'.">
+  <div class="slide-content" style="max-width:min(94vw,1080px);margin:0 auto;">
+    <div class="section-marker reveal">las promesas</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Dos promesas vencen <em>hoy</em>.</h2>
+    <div class="two-col reveal" style="margin-top:clamp(1.1rem,2.2vh,1.6rem)">
+      <div class="col" style="background:var(--panel);border-radius:6px;padding:clamp(0.7rem,1.5vh,1.1rem) clamp(0.8rem,1.5vw,1.1rem)">
+        <p class="col-label" style="color:var(--gold)">Lección 5 &middot; notas de clase, diapositiva 24</p>
+        <p class="lede" style="font-size:clamp(0.8rem,1.4vw,1rem)">&ldquo;CDC es un <strong>contrato de esquema</strong> entre productor y consumidor &mdash; el problema operativo más difícil en streaming, y la razón por la que existen los schema registries. <strong>Los conoceremos en la Lección 11.</strong>&rdquo;</p>
+      </div>
+      <div class="col" style="background:var(--panel);border-radius:6px;padding:clamp(0.7rem,1.5vh,1.1rem) clamp(0.8rem,1.5vw,1.1rem)">
+        <p class="col-label" style="color:var(--gold)">Lección 8 &middot; README</p>
+        <p class="lede" style="font-size:clamp(0.8rem,1.4vw,1rem)">&ldquo;En la pipeline completa del curso (<strong>Lección 11</strong>), el stream de transacciones sale de un Postgres OLTP vía Debezium CDC. Aquí <span class="ink-mono">seed_transactions.py</span> hace de sustituto de ese feed de CDC para que la lección pueda enfocarse en la parte difícil: la tolerancia a fallos.&rdquo;</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s04 · THE HONEST ADMISSION ─────────────────────── -->
+<section class="slide" id="s04" data-speaker="Nombra el patrón directamente: cada lección desde la 6 sustituyó en silencio la fuente real y desordenada por un fixture sintético para que pudieras aislar un mecanismo a la vez. Eso fue buena pedagogía, no un atajo — dilo así. Luego revela el DDL y déjalo reposar: esta no es una tabla rediseñada para el final, es literalmente la tabla de la Lección 1, sin cambios. Haz que encuentren NUMERIC(10,2) con la vista — han escrito esa cláusula exacta en al menos cuatro lecciones anteriores.">
+  <div class="slide-content" style="max-width:min(94vw,1040px);margin:0 auto;">
+    <div class="section-marker reveal">la admisión honesta</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Las lecciones 8&ndash;10 usaron un <em>sustituto</em>.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.8rem,1.6vh,1.1rem)">
+      <tr><th>Lección</th><th>Sustituyó a la fuente real</th></tr>
+      <tr><td>8</td><td>un topic sintético de <span class="ink-mono">transactions</span></td></tr>
+      <tr><td>9</td><td>un topic sintético de <span class="ink-mono">orders</span></td></tr>
+      <tr><td>10</td><td>un stream genérico de <span class="ink-mono">events</span></td></tr>
+    </table>
+    <div class="code-block reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">orders &mdash; Lección 1, sin cambios</span></div>
+      <div class="code-body"><span class="r">CREATE TABLE</span> <span class="n">orders</span> (
+    id          BIGINT IDENTITY <span class="r">PRIMARY KEY</span>,
+    customer_id INTEGER,
+    amount      <span class="gy">NUMERIC(10,2)</span>,
+    status      TEXT <span class="r">DEFAULT</span> <span class="s">'pending'</span>,
+    created_at  TIMESTAMPTZ,
+    updated_at  TIMESTAMPTZ
+);</div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="ico" style="color:var(--gold)">&#10003;</div>
+      <div class="ctxt">Cada sustituto fue un fixture &mdash; construido para que pudieras estudiar <strong>un solo componente</strong> sin que el resto del sistema estorbara. Hoy la fuente es real, y <span class="gy">NUMERIC(10,2)</span> es la misma línea que escribiste en las lecciones 1, 2, 4 y 5.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s05 · PART ONE DIVIDER ──────────────────────────── -->
+<section class="slide deep" id="s05" data-speaker="Enmarca la Parte uno, que dura unos 50 minutos y termina en la diapositiva de descanso (s28). Establece el contrato para la próxima hora: no estamos aprendiendo ninguna herramienta nueva. Cada herramienta de esta pipeline ya se enseñó. Lo nuevo es observar a siete sistemas que hacen commit de forma independiente intentando ponerse de acuerdo sobre el estado actual de un pedido, y construir el vocabulario — el libro de garantías — para hablar de dónde vive realmente ese acuerdo.">
+  <div class="geo geo-circle"></div>
+  <div class="geo geo-dot"></div>
+  <div class="geo geo-line"></div>
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="kicker reveal">Parte uno</div>
+    <h1 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">El sistema, <em>no</em> las cajas.</h1>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem)">Un pedido, seguido salto a salto a través de siete sistemas que no comparten una transacción. El libro de garantías que construyes esta hora es la columna vertebral de todo lo que sigue.</p>
+  </div>
+</section>
+
+<!-- ─── s10 · COLD OPEN ─────────────────────────────────── -->
+<section class="slide" id="s10" data-speaker="Apertura en frío: muestra la respuesta antes que cualquier mecanismo. Ejecuta verify.py --verbose en vivo si es posible — la bandera --verbose imprime una línea de narración (STEP n/5) antes de cada espera, así que léela en voz alta, luego deja que la línea de detalle ↳ aterrice con el WAL LSN / offset de Kafka / versión de ClickHouse reales tal como la pipeline los produce. El verify.py simple (sin bandera) es exactamente el output del contrato de evaluación reutilizado más adelante en s27/s41 — no confundas los dos. El movimiento clave es el id — dilo en voz alta y diles a los estudiantes que recuerden ese número, porque cada diagrama del resto de la lección remonta a este mismo pedido. Todavía no expliques la lógica PASS/FAIL; eso llega en s27. Ahora mismo esto es solo: aquí está la prueba de que toda la pipeline ya funciona de extremo a extremo.">
+  <div class="slide-content" style="max-width:min(94vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">apertura en frío</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Ya tenemos la <em>respuesta</em>.</h2>
+    <p class="sub reveal" style="margin-top:0.5rem">Un pedido. Primero la respuesta de la API &mdash; luego caminamos hacia atrás por todo lo que tuvo que ser cierto para que fuera correcta.</p>
+    <div class="prompt reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)" data-copy="uv run python scripts/verify.py --verbose">
+      <span class="plabel">ejecútalo</span>
+      <span class="pcmd">uv run python scripts/verify.py --verbose</span>
+    </div>
+    <div class="reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)">
+      <svg class="svg-dia" viewBox="0 0 980 260" role="img" aria-label="verify.py demuestra el canario a través de cinco pasos: insert, update, update anulable, delete y verificación de borrado.">
+        <defs>
+          <marker id="canaryArrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0 0 L8 4 L0 8 z" fill="rgba(212,165,116,0.55)"/>
+          </marker>
+        </defs>
+
+        <text class="dia-lbl" x="15" y="22">UN CANARIO &#183; CINCO PRUEBAS</text>
+
+        <g class="dia-flow" marker-end="url(#canaryArrow)">
+          <path d="M187 97 H212"/>
+          <path d="M384 97 H409"/>
+          <path d="M581 97 H606"/>
+          <path d="M778 97 H803"/>
+        </g>
+
+        <g class="dia-box"><rect x="15" y="70" width="172" height="54" rx="4"/></g>
+        <g class="dia-box"><rect x="212" y="70" width="172" height="54" rx="4"/></g>
+        <g class="dia-box"><rect x="409" y="70" width="172" height="54" rx="4"/></g>
+        <g class="dia-box"><rect x="606" y="70" width="172" height="54" rx="4"/></g>
+        <rect class="dia-hit" x="803" y="70" width="172" height="54" rx="4"/>
+
+        <text class="dia-key" x="101" y="93" text-anchor="middle">1 &#183; INSERT</text>
+        <text class="dia-val" x="101" y="111" text-anchor="middle">la fila llega a la API</text>
+
+        <text class="dia-key" x="298" y="93" text-anchor="middle">2 &#183; UPDATE</text>
+        <text class="dia-val" x="298" y="111" text-anchor="middle">gana el LSN más alto</text>
+
+        <text class="dia-key" x="495" y="93" text-anchor="middle">3 &#183; NULLABLE UPDATE</text>
+        <text class="dia-val" x="495" y="111" text-anchor="middle">NULL permanece NULL</text>
+
+        <text class="dia-key" x="692" y="93" text-anchor="middle">4 &#183; DELETE</text>
+        <text class="dia-val" x="692" y="111" text-anchor="middle">tombstone escrito</text>
+
+        <text class="dia-key" x="889" y="93" text-anchor="middle">5 &#183; VERIFY DELETE</text>
+        <text class="dia-val" x="889" y="111" text-anchor="middle">la API devuelve 404</text>
+
+        <text class="dia-cap" x="15" y="158">customer_id, amount, status &mdash; los siete saltos, primera vez.</text>
+        <text class="dia-cap" x="15" y="178">cambian amount/status; el <tspan class="dia-key">version</tspan> de ClickHouse (el LSN de Debezium) debe subir, no sobrescribirse en el lugar.</text>
+        <text class="dia-cap" x="15" y="198">discount_code se establece y luego se borra &mdash; no debe resucitar la imagen previa al update.</text>
+        <text class="dia-cap" x="15" y="218">se elimina la fila en Postgres; Debezium emite un evento de delete con un LSN más alto que toda versión anterior.</text>
+        <text class="dia-cap dia-hot" x="15" y="238">el marcador <tspan class="dia-key">_is_deleted=1</tspan> de ClickHouse gana bajo FINAL, y solo entonces la API concuerda y devuelve 404.</text>
+      </svg>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt"><strong>id=<span class="canary-id">208</span></strong> es el canario de hoy. Mantenlo a la vista &mdash; cada salto de esta lección remonta a este mismo pedido.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s11 · THE QUESTION ──────────────────────────────── -->
+<section class="slide" id="s11" data-speaker="Esta es la única pregunta que hay que hacerse en cada salto durante el resto de la hora, en la cabeza del estudiante, sin que se lo pidan, para el final de la lección. Dila una vez, despacio, y luego repítela enmarcada como hábito: cada vez que mires un sistema nuevo en una pipeline, haz esta pregunta antes que cualquier otra. Son deliberadamente dos preguntas soldadas en una, porque la durabilidad y el modo de fallo son la misma pregunta vista desde dos direcciones.">
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;text-align:center;">
+    <div class="kicker reveal" style="align-self:center">pregunta esto en cada salto</div>
+    <h1 class="reveal" style="margin-top:clamp(0.8rem,1.8vh,1.3rem);font-size:clamp(1.9rem,5.6vw,4.1rem)">¿Dónde es <em>durable</em> este evento ahora mismo &mdash; y qué pasa si el siguiente proceso muere?</h1>
+  </div>
+</section>
+
+<!-- ─── s12 · SEVEN BOXES ───────────────────────────────── -->
+<section class="slide" id="s12" data-speaker="Recorre el flujo de izquierda a derecha, nombrando en voz alta la posición durable de cada caja. La lógica de color es literal, no decorativa: las cajas menta son lugares donde el evento tiene una identidad real, direccionable y durable; las flechas naranjas son los huecos entre ellas, donde nada se ha puesto de acuerdo todavía. Enfatiza que Schema Registry y Kafka se dibujan como cajas separadas aunque la descripción de la pipeline a veces las agrupa — el schema ID y el offset son dos identidades durables distintas, y esa distinción importa más adelante (s19, s22).">
+  <div class="slide-content" style="max-width:min(96vw,1180px);margin:0 auto;">
+    <div class="section-marker reveal">las siete cajas</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">El mismo pedido, siete <em>posiciones durables</em>.</h2>
+    <div class="flow reveal" style="justify-content:center;margin-top:clamp(1rem,2vh,1.4rem)">
+      <div class="box">Postgres<br><span style="font-size:0.68em;font-weight:400;opacity:.75">WAL LSN</span></div>
+      <span class="arrow" style="color:var(--red)">&rarr;</span>
+      <div class="box">Debezium<br><span style="font-size:0.68em;font-weight:400;opacity:.75">WAL LSN + slot</span></div>
+      <span class="arrow" style="color:var(--red)">&rarr;</span>
+      <div class="box">Kafka<br><span style="font-size:0.68em;font-weight:400;opacity:.75">topic&middot;partition&middot;offset</span></div>
+      <span class="arrow" style="color:var(--red)">&rarr;</span>
+      <div class="box">Schema Registry<br><span style="font-size:0.68em;font-weight:400;opacity:.75">schema ID</span></div>
+      <span class="arrow" style="color:var(--red)">&rarr;</span>
+      <div class="box">Spark<br><span style="font-size:0.68em;font-weight:400;opacity:.75">checkpoint offset</span></div>
+      <span class="arrow" style="color:var(--red)">&rarr;</span>
+      <div class="box">ClickHouse<br><span style="font-size:0.68em;font-weight:400;opacity:.75">versioned row</span></div>
+      <span class="arrow" style="color:var(--red)">&rarr;</span>
+      <div class="box">API<br><span style="font-size:0.68em;font-weight:400;opacity:.75">query result</span></div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt"><strong style="color:var(--gold)">Las cajas</strong> son donde el evento tiene una posición durable y direccionable. <strong style="color:var(--red)">Las flechas</strong> siguen en vuelo &mdash; ninguna transacción compartida cubre el cruce.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s13 · THE GUARANTEE LEDGER ─────────────────────── -->
+<section class="slide" id="s13" data-speaker="Esta tabla es la columna vertebral de la Hora 1 — dilo explícitamente. Cada diapositiva del resto de la Parte uno o bien deriva de una fila de esta tabla, o vuelve a demostrar una. No la apresures: lee en voz alta la columna 'garantía honesta' de cada fila, porque esa columna es todo el punto — es deliberadamente modesta, nunca afirma más de lo que el sistema realmente te da.">
+  <div class="slide-content" style="max-width:min(97vw,1240px);margin:0 auto;">
+    <div class="section-marker reveal">el libro de garantías &middot; columna vertebral de la hora 1</div>
+    <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.8rem);font-size:clamp(1.3rem,3.4vw,2.3rem)">Cinco fronteras, cinco <em>garantías honestas</em>.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <tr><th>Frontera</th><th>Posición / identidad durable</th><th>Garantía honesta</th><th>Diseño de recuperación</th></tr>
+      <tr>
+        <td>Postgres &rarr; Debezium</td>
+        <td>WAL LSN + slot de replicación</td>
+        <td>CDC reproducible; normalmente at least once</td>
+        <td>no confirmar más allá de un evento que no sea durable aguas abajo</td>
+      </tr>
+      <tr>
+        <td>Debezium &rarr; Kafka</td>
+        <td>topic, partition, offset; schema ID de Confluent</td>
+        <td>log ordenado y durable por partición</td>
+        <td>el productor idempotente ayuda dentro de una sesión; aguas abajo igual tolera el replay</td>
+      </tr>
+      <tr>
+        <td>Kafka &rarr; Spark</td>
+        <td>offsets en el checkpoint de Spark</td>
+        <td>progreso exactly-once de offset/estado <em>dentro de Spark</em></td>
+        <td>checkpoint en un volumen persistente, nunca en <span class="ink-mono">/tmp</span></td>
+      </tr>
+      <tr>
+        <td>Spark &rarr; ClickHouse</td>
+        <td>LSN como versión de fila; (topic, partition, offset) como identidad del evento</td>
+        <td>el sink externo puede escribirse más de una vez</td>
+        <td>filas de estado actual versionadas hacen inofensivo el replay</td>
+      </tr>
+      <tr>
+        <td>ClickHouse &rarr; API</td>
+        <td>resultado de consulta en un momento de ingesta conocido</td>
+        <td>estado actual con obsolescencia medible</td>
+        <td>reportar la salud de dependencias y el frescor de datos por separado</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ─── s14 · PREDICT: THE CRASH ────────────────────────── -->
+<section class="slide" id="s14" data-speaker="Predice primero. Pide un conteo de manos antes de revelar: ¿ClickHouse termina con una fila duplicada? ¿Cambia la respuesta de la API? Deja que se desarrolle el desacuerdo — la mayoría de los estudiantes adivina correctamente 'filas duplicadas' pero muchos adivinan incorrectamente que la respuesta de la API también se vuelve no determinista. La revelación separa las dos cosas: la duplicación física es esperada e inofensiva; la respuesta de la API queda intacta porque ReplacingMergeTree(version) hace la duplicación invisible al momento de leer. Esto prepara el terreno para s16.">
+  <div class="slide-content" style="max-width:min(94vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">predice &middot; el crash</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Spark escribe un batch, y luego <em>muere</em>.</h2>
+    <p class="lede reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)">Escribe un batch en ClickHouse, y luego muere antes de hacer checkpoint. ¿Qué pasa?</p>
+    <div class="spoiler reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="callout proof">
+        <div class="ico" style="color:var(--gold)">&#10003;</div>
+        <div class="ctxt"><strong>El batch se reproduce (replay).</strong> Spark reinicia desde el último checkpoint, que nunca avanzó, y vuelve a leer los mismos offsets de Kafka. <strong>ClickHouse gana filas duplicadas físicamente</strong> &mdash; el mismo order_id y el mismo LSN, escritos dos veces. <strong>La respuesta de la API no cambia</strong> &mdash; las filas duplicadas comparten versión, así que un colapso al momento de leer las trata como una sola.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s15 · BIG LINE #1 ───────────────────────────────── -->
+<section class="slide" id="s15" data-speaker="Declaración de tesis a página completa. Déjala reposar en silencio un momento antes de continuar. Esta es la frase que explica por qué el crash de s14 no es un bug: Postgres confirma su transacción, Kafka confirma su append, Spark confirma su checkpoint, ClickHouse confirma su merge — cuatro commits separados y no coordinados, y nada fuera de cada uno de esos sistemas sabe nada del commit de los demás.">
+  <div class="slide-content" style="max-width:min(90vw,920px);margin:0 auto;text-align:center;">
+    <div class="kicker reveal" style="align-self:center">lo que demuestra hoy</div>
+    <h1 class="reveal" style="margin-top:clamp(0.7rem,1.6vh,1.1rem)">La atomicidad termina en la <em>frontera del sistema</em>.</h1>
+    <p class="sub reveal" style="margin:clamp(0.9rem,1.8vh,1.3rem) auto 0;text-align:center">Postgres confirma. Kafka confirma. Spark hace checkpoint. ClickHouse hace merge. Ninguno de esos cuatro commits es el mismo commit.</p>
+  </div>
+</section>
+
+<!-- ─── s16 · WHAT IS TRUE ──────────────────────────────── -->
+<section class="slide" id="s16" data-speaker="Pivota de 'qué falla' a 'qué garantiza realmente el diseño, con honestidad'. Recorre el DDL: ReplacingMergeTree(version), version = el LSN de origen de Debezium — el mismo número de s18. FINAL colapsa al momento de la consulta; un delete no es una eliminación física de fila, sino una fila con LSN más alto y _is_deleted=1 que gana ese mismo colapso. Aterriza con fuerza en el último callout: esto es convergencia, no coordinación. No existe ningún commit de dos fases en ninguna parte de este stack, y no hace falta que exista.">
+  <div class="slide-content" style="max-width:min(94vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">entonces, qué ES cierto</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Estado actual <em>effectively-once</em>.</h2>
+    <div class="code-block reveal" style="margin-top:clamp(0.6rem,1.3vh,0.9rem)" data-copy="CREATE TABLE lesson11.orders_current\n(\n    order_id        UInt64,\n    customer_id     UInt32,\n    amount          Decimal(10, 2),\n    status          LowCardinality(String),\n    created_at      DateTime64(3, 'UTC'),\n    updated_at      DateTime64(3, 'UTC'),\n    version         UInt64,\n    _is_deleted     UInt8,\n    source_topic    LowCardinality(String),\n    kafka_partition UInt16,\n    kafka_offset    UInt64,\n    source_ts       DateTime64(3, 'UTC'),\n    ingested_at     DateTime64(3, 'UTC') DEFAULT now64(3)\n)\nENGINE = ReplacingMergeTree(version)\nPARTITION BY modulo(order_id, 16)\nORDER BY order_id;">
+      <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">lesson11.orders_current</span></div>
+      <div class="code-body"><span class="r">CREATE TABLE</span> <span class="n">lesson11.orders_current</span>
+(
+    order_id        UInt64,
+    customer_id     UInt32,
+    amount          Decimal(10, 2),
+    status          <span class="gy">LowCardinality</span>(String),   <span class="cm">-- L10: 213.5x compression</span>
+    created_at      DateTime64(3, <span class="s">'UTC'</span>),
+    updated_at      DateTime64(3, <span class="s">'UTC'</span>),
+    version         UInt64,                  <span class="cm">-- Debezium source.lsn</span>
+    _is_deleted     UInt8,
+    source_topic    <span class="gy">LowCardinality</span>(String),   <span class="cm">-- event identity, L6</span>
+    kafka_partition UInt16,
+    kafka_offset    UInt64,
+    source_ts       DateTime64(3, <span class="s">'UTC'</span>),
+    ingested_at     DateTime64(3, <span class="s">'UTC'</span>) <span class="r">DEFAULT</span> now64(3)
+)
+<span class="r">ENGINE</span> = <span class="gy">ReplacingMergeTree</span>(version)
+<span class="r">PARTITION BY</span> modulo(order_id, 16)
+<span class="r">ORDER BY</span> order_id;</div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt"><span class="ink-mono">FINAL</span> colapsa cada versión al momento de la consulta; gana el <span class="ink-mono">version</span> más alto. Un delete no es un borrado físico &mdash; es una fila con un LSN más alto y <span class="ink-mono">_is_deleted=1</span> que gana ese mismo colapso.</div>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.5rem,1vh,0.75rem)">
+      <div class="ico" style="color:var(--red)">!</div>
+      <div class="ctxt">Esto <strong>no es una transacción distribuida</strong>. Ningún commit de dos fases abarca Postgres, Kafka, Spark y ClickHouse. Es convergencia: dado tiempo suficiente, cada lector ve el mismo estado actual.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s17 · CALLBACK L8 ───────────────────────────────── -->
+<section class="slide" id="s17" data-speaker="Callback a la propia autodescripción de la Lección 8. En L8 los estudiantes demostraron exactly-once dentro del dominio de commit de un solo procesador — eso fue genuinamente el ejercicio más difícil del curso hasta ese punto. Reencuadra la tarea de hoy con honestidad: no es una versión más difícil de ese ejercicio, es una más amplia. Siete dominios de commit, ninguno de los cuales coordina con los demás, es un tipo de problema distinto al de un procesador haciendo exactly-once contra su propio almacén de estado.">
+  <div class="slide-content" style="max-width:min(94vw,1020px);margin:0 auto;">
+    <div class="section-marker reveal">callback &middot; lección 8</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">No más difícil. <em>Más amplia.</em></h2>
+    <div class="callout note reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt">El README de la Lección 8 llama a ese ejercicio &ldquo;el ejercicio más difícil del curso&rdquo; &mdash; y demostró exactly-once <em>dentro de un solo procesador</em>.</div>
+    </div>
+    <div class="two-col reveal" style="margin-top:clamp(0.9rem,1.8vh,1.3rem)">
+      <div class="col">
+        <p class="col-label" style="color:var(--gold)">Lección 8 &mdash; angosta</p>
+        <p class="lede" style="font-size:clamp(0.85rem,1.5vw,1.05rem)">Un dominio de commit: estado y offsets exactly-once, dentro de un solo procesador de streams.</p>
+      </div>
+      <div class="col">
+        <p class="col-label" style="color:var(--red)">Lección 11 &mdash; amplia</p>
+        <p class="lede" style="font-size:clamp(0.85rem,1.5vw,1.05rem)">Siete dominios de commit que nunca coordinan. No más difícil. Más amplia.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s18 · CALLBACK L1/L5 ────────────────────────────── -->
+<section class="slide" id="s18" data-speaker="Callback a la demo del slot de replicación abandonado de la Lección 5, donde los estudiantes vieron el WAL retenido de un slot crecer de 12 MB a 59 MB porque nada lo estaba consumiendo. Ese LSN se enmarcó entonces puramente como señal de advertencia — presión de disco por un slot sin consumir. Revela su segunda vida: exactamente el mismo número monótonamente creciente es ahora la columna version que impulsa el colapso de ReplacingMergeTree. Mismo mecanismo, encuadre opuesto: el crecimiento era la señal de peligro entonces, el ordenamiento es la característica ahora.">
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
+    <div class="section-marker reveal">callback &middot; lecciones 1 y 5</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">El número que viste <em>crecer</em>.</h2>
+    <div class="reveal" style="display:flex;align-items:center;gap:clamp(1rem,2.5vw,2rem);margin-top:clamp(1rem,2vh,1.4rem);flex-wrap:wrap">
+      <div><div class="stat red">12 MB</div><div class="stat-label">inicio del slot &middot; lección 5</div></div>
+      <span style="font-family:var(--mono);color:var(--muted);font-size:clamp(1.2rem,2.5vw,1.8rem)">&rarr;</span>
+      <div><div class="stat cool">59 MB</div><div class="stat-label">fin del slot &middot; demo del slot abandonado</div></div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.9rem,1.8vh,1.2rem)">
+      <div class="ico" style="color:var(--gold)">&#10003;</div>
+      <div class="ctxt">Mismo LSN. Nuevo trabajo: es la columna <span class="ink-mono">version</span> en <span class="ink-mono">ReplacingMergeTree(version)</span>.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s19 · CALLBACK L6 ───────────────────────────────── -->
+<section class="slide" id="s19" data-speaker="Callback a los fundamentos de Kafka de la Lección 6: topic, partition, offset. La trampa aquí es que los estudiantes suelen intuir el 'offset' como un número de secuencia global porque dentro de una sola partición se comporta como uno. Rompe esa intuición explícitamente: cdc.public.orders tiene 3 particiones, así que dos eventos del mismo order_id pueden caer en particiones distintas con offsets incomparables. Por eso exactamente el diseño de s16 usa el LSN de Postgres, no el offset de Kafka, para ordenar el estado actual — el offset solo identifica un evento, nunca lo ordena frente a eventos de otra partición.">
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
+    <div class="section-marker reveal">callback &middot; lección 6</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Un offset no es una <em>versión de fila</em>.</h2>
+    <div class="reveal" style="margin-top:clamp(0.8rem,1.6vh,1.1rem)"><div class="stat cool">3</div><div class="stat-label">particiones en cdc.public.orders</div></div>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">Dos eventos del mismo order_id pueden caer en particiones distintas. Sus offsets no se comparan entre sí en absoluto.</p>
+    <div class="callout danger reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)">
+      <div class="ico" style="color:var(--red)">!</div>
+      <div class="ctxt">Por eso precisamente el <strong>LSN ordena el estado actual</strong>, y el <strong>offset solo identifica el evento</strong>.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s20 · SCHEMA CONTRACTS ──────────────────────────── -->
+<section class="slide" id="s20" data-speaker="Traza la distinción escritor/lector en la dirección correcta — esto confunde a la gente constantemente porque 'backward compatible' suena como si significara 'funciona con lectores antiguos' cuando en realidad significa lo opuesto. Repasa las dos definiciones con una frase concreta cada una: BACKWARD = un lector nuevo puede leer datos viejos. FORWARD = un lector viejo puede leer datos nuevos. FULL requiere ambas, que es a lo que realmente está configurado el subject de esta pipeline, y explica por qué: múltiples consumidores (Spark, herramientas ad hoc) pueden ir por detrás del esquema más nuevo en cualquier momento.">
+  <div class="slide-content" style="max-width:min(94vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">contratos de esquema, trazados correctamente</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">¿Hacia dónde apunta la <em>compatibilidad</em>?</h2>
+    <div class="two-col reveal" style="margin-top:clamp(0.8rem,1.6vh,1.1rem)">
+      <div class="col">
+        <p class="col-label" style="color:var(--gold)">esquema del escritor</p>
+        <p class="lede" style="font-size:clamp(0.85rem,1.5vw,1.05rem)">Debezium, en el momento en que codifica un evento de cambio.</p>
+      </div>
+      <div class="col">
+        <p class="col-label" style="color:var(--red)">esquema del lector</p>
+        <p class="lede" style="font-size:clamp(0.85rem,1.5vw,1.05rem)">El normalizador de Spark, en el momento en que decodifica uno.</p>
+      </div>
+    </div>
+    <table class="dtable reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <tr><th>Modo</th><th>Qué garantiza</th></tr>
+      <tr><td class="cool">BACKWARD</td><td>un lector nuevo puede leer datos viejos</td></tr>
+      <tr><td class="cool">FORWARD</td><td>un lector viejo puede leer datos nuevos</td></tr>
+      <tr><td class="cool">FULL</td><td>ambas direcciones se cumplen</td></tr>
+    </table>
+    <div class="callout proof reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)">
+      <div class="ico" style="color:var(--gold)">&#10003;</div>
+      <div class="ctxt">Configuramos <span class="ink-mono">cdc.public.orders-value</span> en <strong>FULL</strong>.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s21 · WIRE FORMAT ───────────────────────────────── -->
+<section class="slide" id="s21" data-speaker="Ponte concreto sobre los bytes en el cable antes de que la trampa de s22 tenga sentido. Cada mensaje de Kafka codificado en Avro que viene de Debezium lleva cinco bytes de framing de Confluent antes de que empiece el payload real. Señala que el byte 0 siempre es exactamente 0x00 por convención — es un marcador de formato, no dato — y los bytes 1 a 4 son el schema ID que hace posible la búsqueda por registro de s22.">
+  <div class="slide-content" style="max-width:min(92vw,940px);margin:0 auto;">
+    <div class="section-marker reveal">el formato en el cable</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Cinco bytes antes de que empiecen los <em>datos</em>.</h2>
+    <div class="arch reveal" style="margin-top:clamp(0.9rem,1.8vh,1.3rem)">BYTE 0        magic byte     0x00
+BYTES 1&ndash;4    schema ID      big-endian, 4-byte integer
+BYTES 5+      payload        Avro-encoded record</div>
+    <div class="callout note reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt">El schema ID viaja <strong>en cada mensaje</strong> &mdash; un consumidor nunca tiene que adivinar qué esquema escribió un registro.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s22 · THE TRAP ──────────────────────────────────── -->
+<section class="slide" id="s22" data-speaker="Esta es la trampa en la que caería directamente la mayoría de los estudiantes sin esta diapositiva. Un topic de Kafka retenido contiene registros escritos bajo cada versión de esquema que haya existido en ese topic — traer 'el esquema más reciente' una vez por batch y aplicarlo a cada registro decodifica mal en silencio los más antiguos. Recorre la solución real línea por línea: decodifica el schema ID de 4 bytes por registro (de s21), agrupa el batch por ese ID, trae de la registry cada esquema de escritor distinto, normaliza cada grupo contra el esquema del lector, y luego une los grupos normalizados de vuelta en un solo batch.">
+  <div class="slide-content" style="max-width:min(94vw,1020px);margin:0 auto;">
+    <div class="section-marker hot reveal">la trampa</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">&ldquo;El más reciente&rdquo; es <em class="hot">mentira</em> para registros viejos.</h2>
+    <div class="callout danger reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)">
+      <div class="ico" style="color:var(--red)">!</div>
+      <div class="ctxt">Un topic retenido contiene registros escritos bajo <strong>cada</strong> versión de esquema que haya existido. Traer el esquema más reciente una vez y aplicarlo a todo el batch corrompe en silencio los registros viejos.</div>
+    </div>
+    <div class="code-block reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)">
+      <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">consumer &mdash; schema ID por registro</span></div>
+      <div class="code-body"><span class="cm"># the schema ID is inline on every record (bytes 1-4) &mdash; use it</span>
+by_schema_id = <span class="fn">defaultdict</span>(list)
+<span class="r">for</span> record <span class="r">in</span> batch:
+    schema_id = decode_schema_id(record.value)
+    by_schema_id[schema_id].append(record)
+
+<span class="r">for</span> schema_id, records <span class="r">in</span> by_schema_id.items():
+    writer_schema = registry.get_schema(schema_id)
+    normalized = [normalize(r, writer_schema, reader_schema)
+                  <span class="r">for</span> r <span class="r">in</span> records]
+    union_batch.extend(normalized)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s23 · BIG LINE #2 ───────────────────────────────── -->
+<section class="slide" id="s23" data-speaker="Segunda tesis a página completa. Este es el pago directo de s20-s22: una registry impone que un cambio de esquema no rompa la compatibilidad en silencio, pero no tiene ningún mecanismo para reescribir o reprocesar nada que un consumidor ya haya decodificado bajo una suposición antigua. El código del propio consumidor (la lógica de agrupación de s22) es lo único que separa 'la registry aprobó este esquema' de 'mi batch se decodificó correctamente'.">
+  <div class="slide-content" style="max-width:min(90vw,940px);margin:0 auto;text-align:center;">
+    <div class="kicker reveal" style="align-self:center">la segunda ley</div>
+    <h1 class="reveal" style="margin-top:clamp(0.7rem,1.6vh,1.1rem);font-size:clamp(1.8rem,5.2vw,3.6rem)">Un schema registry guarda <em>contratos</em>; no migra a los consumidores por ti.</h1>
+  </div>
+</section>
+
+<!-- ─── s24 · BACKPRESSURE ──────────────────────────────── -->
+<section class="slide" id="s24" data-speaker="Recorre la cadena causal de izquierda a derecha como una cadena de consecuencias, no como una lista: un sink lento fuerza micro-batches más largos, lo que ensancha la distancia entre el offset del consumidor y la cabeza de la partición, que es exactamente lo que envejece la métrica de frescor. Kafka es un amortiguador aquí, no una solución — sostendrá esa distancia creciente hasta que expire la retención o se llene el disco del broker, y entonces deja de amortiguar. Cierra con el callback a la Lección 9 y los números medidos específicos: un trigger de 10ms y uno de 250ms produjeron un p50 idéntico de 5.0s, porque ambos estaban acotados por la misma marca de agua de 5 segundos, no por la sobrecarga del batch — el piso es max(trigger, batch_time).">
+  <div class="slide-content" style="max-width:min(96vw,1120px);margin:0 auto;">
+    <div class="section-marker hot reveal">backpressure</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">El backpressure es <em class="hot">tiempo almacenado</em>.</h2>
+    <div class="flow reveal" style="justify-content:center;margin-top:clamp(0.9rem,1.8vh,1.3rem)">
+      <div class="box" style="border-color:var(--red-dim);color:var(--red)">sink lento</div>
+      <span class="arrow">&rarr;</span>
+      <div class="box" style="border-color:var(--red-dim);color:var(--red)">batches más largos</div>
+      <span class="arrow">&rarr;</span>
+      <div class="box" style="border-color:var(--red-dim);color:var(--red)">crece la distancia offset&ndash;cabeza</div>
+      <span class="arrow">&rarr;</span>
+      <div class="box" style="border-color:var(--red-dim);color:var(--red)">envejece el frescor</div>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="ico" style="color:var(--red)">!</div>
+      <div class="ctxt">Kafka lo absorbe &mdash; pero solo hasta que la <strong>retención</strong> o el <strong>disco</strong> se convierten en el siguiente límite.</div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.5rem,1vh,0.75rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt"><strong>Callback &middot; Lección 9:</strong> el piso de Spark es <span class="ink-mono">max(trigger, batch_time)</span>. Lo mediste &mdash; un trigger de 10ms y uno de 250ms dieron el mismo p50 de 5.0s, ambos acotados por la marca de agua compartida de 5 segundos, no por la sobrecarga del batch.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s25 · THREE METRICS ─────────────────────────────── -->
+<section class="slide" id="s25" data-speaker="Preséntalos exactamente en el orden físico del dashboard de Grafana, de izquierda a derecha: lag, throughput, freshness. Cada uno responde una pregunta distinta y ninguno sustituye a los otros. Aterriza con fuerza en el callout de cierre — este es el chequeo de honestidad para todo el stack de observabilidad: un dashboard en verde te dice que nada se rompió de lo que estás vigilando, no demuestra que la pipeline sea correcta. Solo el canario trazado (s27) demuestra corrección.">
+  <div class="slide-content" style="max-width:min(94vw,1040px);margin:0 auto;">
+    <div class="section-marker reveal">tres números, un dashboard</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Lag, throughput, <em>freshness</em>.</h2>
+    <div class="reveal" style="display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(1rem,2vw,1.8rem);margin-top:clamp(1rem,2vh,1.4rem)">
+      <div class="col">
+        <p class="stat-label">01</p>
+        <div class="stat cool">lag</div>
+        <p class="sub" style="margin-top:0.4rem;font-size:clamp(0.72rem,1.2vw,0.88rem)">Cuánto trabajo está esperando.</p>
+      </div>
+      <div class="col">
+        <p class="stat-label">02</p>
+        <div class="stat cool">throughput</div>
+        <p class="sub" style="margin-top:0.4rem;font-size:clamp(0.72rem,1.2vw,0.88rem)">Si cada etapa logra drenarlo.</p>
+      </div>
+      <div class="col">
+        <p class="stat-label">03</p>
+        <div class="stat cool">freshness</div>
+        <p class="sub" style="margin-top:0.4rem;font-size:clamp(0.72rem,1.2vw,0.88rem)">Lo que siente el usuario.</p>
+      </div>
+    </div>
+    <div class="callout danger reveal" style="margin-top:clamp(0.9rem,1.8vh,1.3rem)">
+      <div class="ico" style="color:var(--red)">!</div>
+      <div class="ctxt">Un dashboard en verde es <strong>evidencia de apoyo</strong>, no prueba.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s26 · BIG LINE #3 ───────────────────────────────── -->
+<section class="slide" id="s26" data-speaker="Tercera y última tesis a página completa de la Parte uno. Esta frase fusiona la cadena causal de s24 (el lag es tiempo que la pipeline debe) con el encuadre del dashboard de s25 (el freshness es la única de las tres métricas que un usuario realmente percibe). Dila una vez, y deja que s27 la operacionalice de inmediato: la condición de aprobación del laboratorio no es una métrica en esta diapositiva, es un trace del canario.">
+  <div class="slide-content" style="max-width:min(90vw,940px);margin:0 auto;text-align:center;">
+    <div class="kicker reveal" style="align-self:center">la tercera ley</div>
+    <h1 class="reveal" style="margin-top:clamp(0.7rem,1.6vh,1.1rem);font-size:clamp(1.9rem,5.6vw,3.9rem)">El lag es <em>tiempo almacenado</em>, y el freshness es lo que <em>siente el usuario</em>.</h1>
+  </div>
+</section>
+
+<!-- ─── s27 · THE LAB CONTRACT ──────────────────────────── -->
+<section class="slide" id="s27" data-speaker="Este es el contrato de evaluación real del laboratorio, y debería sentirse como un alivio después de tres diapositivas seguidas de callbacks cargados de trampas: la barra es concreta y verificable. Ejecuta preflight primero — es una prueba de humo de dependencias, no la prueba real. La prueba real es verify.py, que es exactamente el mismo canario y output ya mostrado en la apertura en frío (s10, id=208) — señálalo explícitamente, este no es output nuevo, es el mismo bloque PASS haciendo doble función como gancho de apertura y barra de cierre.">
+  <div class="slide-content" style="max-width:min(94vw,1020px);margin:0 auto;">
+    <div class="section-marker reveal">el contrato del laboratorio</div>
+    <h2 class="reveal" style="margin-top:clamp(0.5rem,1.2vh,0.8rem);font-size:clamp(1.3rem,3.6vw,2.4rem)">Condición de aprobación: un <em>canario trazado</em>, no un dashboard en verde.</h2>
+    <div class="prompt reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)" data-copy="uv run python scripts/preflight.py">
+      <span class="plabel">ejecuta esto primero</span>
+      <span class="pcmd">uv run python scripts/preflight.py</span>
+    </div>
+    <div class="code-block reveal" style="margin-top:clamp(0.4rem,0.9vh,0.6rem)">
+      <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">preflight.py &mdash; salida</span></div>
+      <div class="code-body"><span class="gy">OK</span>   postgres
+<span class="gy">OK</span>   clickhouse
+<span class="gy">OK</span>   schema-registry   HTTP 200
+<span class="gy">OK</span>   kafka-connect     HTTP 200
+<span class="gy">OK</span>   debezium-task     RUNNING/RUNNING
+<span class="gy">OK</span>   processor-metrics HTTP 200
+<span class="gy">OK</span>   api               HTTP 200</div>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.5rem,1vh,0.75rem)" data-copy="uv run python scripts/verify.py">
+      <span class="plabel">luego esto &mdash; la barra real</span>
+      <span class="pcmd">uv run python scripts/verify.py</span>
+    </div>
+    <div class="code-block reveal" style="margin-top:clamp(0.4rem,0.9vh,0.6rem)">
+      <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">verify.py &mdash; el canario, otra vez</span></div>
+      <div class="code-body"><span class="gy">PASS</span> insert: id=<span class="canary-id">208</span> event=cdc.public.orders:1:80
+<span class="gy">PASS</span> update: API exposes the higher-LSN current state
+<span class="gy">PASS</span> nullable update: NULL did not resurrect the before image
+<span class="gy">PASS</span> delete: higher-LSN marker wins and API returns 404
+<span class="gy">PASS</span>: Postgres &rarr; Debezium &rarr; Avro/Kafka &rarr; Spark &rarr; ClickHouse &rarr; API</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── s28 · BREAK ─────────────────────────────────────── -->
+<section class="slide deep" id="s28" data-speaker="Primer y único descanso de esta mitad. Diez minutos. Recuérdales a los estudiantes que el canario id=208 y el libro de garantías (s13) son las dos cosas que vale la pena releer antes de la Parte dos, que pasa de la teoría a la práctica: levantar toda la pipeline con comandos reales y luego romperla a propósito.">
+  <div class="geo geo-circle"></div>
+  <div class="geo geo-dot"></div>
+  <div class="geo geo-line"></div>
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="kicker reveal">Descanso 01</div>
+    <h1 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Diez minutos. <em>Luego</em> la conectamos.</h1>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem)">Volvemos en diez minutos. La Parte dos empieza con los cuatro comandos que levantan toda la pipeline.</p>
+    <div class="timer reveal" id="breakTimer1" data-seconds="600">
+      <div class="timer-face">
+        <span class="timer-disp">10:00</span>
+        <span class="timer-hint">click to start / pause</span>
+      </div>
+      <div class="timer-controls">
+        <button class="timer-btn" data-add="60" type="button">+1 min</button>
+        <button class="timer-btn" data-add="30" type="button">+30 s</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════
+     LESSON 11 DECK — PART 2 FRAGMENT (s30–s72)
+     Spliced after another agent's shell + s01–s28. No doctype/head/body.
+     ═══════════════════════════════════════════════════════════ -->
+
+<!-- ─── 30 · PART TWO DIVIDER ─────────────────────────── -->
+<section class="slide deep" id="s30" data-speaker="Enmarca la Parte dos en una frase: todo hasta ahora ha sido arquitectura y promesas; en esta parte apuntamos al sistema en funcionamiento y probamos, salto a salto, que un solo pedido realmente hace el viaje. Diles que serán unos 50 minutos, y que estarán escribiendo comandos, no solo mirando diapositivas. Marca el tono: el escepticismo es la postura correcta — no le creas a un diagrama, créele a una terminal.">
+  <div class="geo geo-circle"></div>
+  <div class="geo geo-dot"></div>
+  <div class="geo geo-line"></div>
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="kicker reveal">Parte dos &middot; ~50 min</div>
+    <h1 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Demuestra el <em>camino dorado.</em></h1>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem)">Levanta el stack, luego traza un pedido real a través de las seis fronteras — Postgres, Debezium, Kafka, Spark, ClickHouse, API — y lee tú mismo el valor en cada salto.</p>
+  </div>
+</section>
+
+<!-- ─── 31 · START AND PREFLIGHT ──────────────────────── -->
+<section class="slide" id="s31" data-speaker="Ejecuta esto en vivo antes que cualquier otra cosa. Tres comandos, en orden: construir e iniciar el stack, sincronizar el entorno de Python, y luego ejecutar preflight. Adviérteles explícitamente que el PRIMER arranque en frío es lento — descargando imágenes de Confluent y Spark resolviendo sus coordenadas de jar Kafka/Avro por red — así que no entren en pánico ni le hagan Ctrl-C. Los arranques posteriores son rápidos porque todo queda en caché. Ejecuta preflight y lee las líneas OK en voz alta; si alguna línea no dice OK, detente aquí y arréglalo antes de que avance la Parte dos.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">arranque y preflight</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Levántala, <em>luego revísala.</em></h2>
+    <p class="sub reveal" style="margin-top:0.5rem">Tres comandos. No te saltes el tercero.</p>
+    <div class="prompt reveal" style="margin-top:clamp(0.7rem,1.4vh,1.1rem)" data-copy="docker compose up -d --build">
+      <span class="plabel">1 &middot; construye e inicia todos los contenedores</span>
+      <span class="pcmd">docker compose up -d --build</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem)" data-copy="uv sync">
+      <span class="plabel">2 &middot; sincroniza el entorno de python</span>
+      <span class="pcmd">uv sync</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem)" data-copy="uv run python scripts/preflight.py">
+      <span class="plabel">3 &middot; verifica que cada dependencia es alcanzable</span>
+      <span class="pcmd">uv run python scripts/preflight.py</span>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt"><strong>El primer arranque en frío es grande:</strong> Docker descarga las capas de imagen de Confluent y Spark, y Spark resuelve sus coordenadas de jar Kafka/Avro por red exactamente una vez. Déjalo terminar. Cada arranque después de este es rápido.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 32 · CONNECTOR-INIT EXITED(0) ─────────────────── -->
+<section class="slide" id="s32" data-speaker="Adelántate a la pregunta que hace cada cohorte en los primeros cinco minutos: '¿por qué connector-init ya está muerto?' No está muerto — hizo su único trabajo y se detuvo. Es un contenedor de un solo uso cuyo propósito entero es un único PUT idempotente que registra la configuración del conector de Debezium contra Kafka Connect, y luego termina. Exited (0) es un código de salida limpio, no un crash. Si mostrara un código de salida distinto de cero o siguiera reiniciándose, esa sería la señal de fallo a perseguir. Di esto antes de que alguien abra docker ps y entre en pánico.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">el contenedor que se supone debe estar muerto</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Que <span class="ink-mono">connector-init</span> termine es <em>éxito.</em></h2>
+    <p class="sub reveal" style="margin-top:0.5rem">Los estudiantes siempre preguntan por este. Respóndelo antes de que lo hagan.</p>
+    <div class="code-block reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem)">
+      <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">docker compose ps</span></div>
+      <div class="code-body">NAME              STATUS
+&hellip;                &hellip;
+connector-init    <span class="gy">Exited (0)</span>  &larr; este es el estado final saludable</div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="ico" style="color:var(--gold)">&#10003;</div>
+      <div class="ctxt"><strong><span class="ink-mono">connector-init</span> es un job de un solo uso, no un servicio.</strong> Envía un único PUT idempotente a Kafka Connect que registra la configuración del conector de Debezium, y luego termina. No le queda nada por hacer, así que se detiene. <span class="term">Exited (0)</span> significa que tuvo éxito — un código distinto de cero o un bucle de reinicio sería la señal de fallo real.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 33 · TRACE THE CANARY — SIX HOPS MAP ──────────── -->
+<section class="slide" id="s33" data-speaker="Este es el mapa de toda la hora: seis fronteras, un pedido, seis formas de mirar. Recórrelo de izquierda a derecha sin detalle todavía — el detalle llega en las próximas cinco diapositivas, un salto por diapositiva. Diles que el punto no es memorizar comandos, es salir sabiendo dónde mirar cuando algo esté mal en su propio proyecto más adelante.">
+  <div class="slide-content" style="max-width:min(92vw,1050px);margin:0 auto;">
+    <div class="section-marker reveal">traza el canario</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Seis saltos, <em>un pedido.</em></h2>
+    <p class="sub reveal" style="margin-top:0.5rem">Cada frontera de abajo tiene su propia diapositiva. Este es el mapa.</p>
+    <table class="dtable reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <tr><th>Salto</th><th>Frontera</th><th>Qué inspeccionas</th></tr>
+      <tr><td>&#9312;</td><td>Postgres</td><td>la fila misma, y la posición actual del WAL</td></tr>
+      <tr><td>&#9313;</td><td>Debezium</td><td>estado de la tarea del conector</td></tr>
+      <tr><td>&#9314;</td><td>Kafka</td><td>key, value, partition, offset, schema ID</td></tr>
+      <tr><td>&#9315;</td><td>Spark</td><td>progreso del batch y estado del checkpoint</td></tr>
+      <tr><td>&#9316;</td><td>ClickHouse</td><td>filas crudas vs. <span class="ink-mono">FINAL</span></td></tr>
+      <tr><td>&#9317;</td><td>API</td><td>la cadena de procedencia completa en un solo cuerpo JSON</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ─── 34 · HOP 1–2: POSTGRES, DEBEZIUM ──────────────── -->
+<section class="slide" id="s34" data-speaker="Saltos uno y dos. En Postgres, TABLE orders es la abreviatura de psql para SELECT * FROM orders — muestra la fila del canario ahí, ordinaria y durable, y menciona que su posición en el WAL es de donde Debezium realmente está replicando, no de la tabla misma. Luego salta a Debezium: haz curl al endpoint de estado del conector y lee el campo state en voz alta — RUNNING/RUNNING significa que tanto el conector como su única tarea están saludables. Si alguno dice FAILED, ese es el primer lugar a revisar antes de siquiera tocar Kafka.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">salto &#9312;&ndash;&#9313;</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Fila en Postgres, <em>luego Debezium.</em></h2>
+    <div class="two-col reveal" style="margin-top:clamp(1rem,2vh,1.5rem)">
+      <div class="col">
+        <p class="col-label" style="color:var(--gold)">&#9312; Postgres</p>
+        <div class="prompt" data-copy="TABLE orders;">
+          <span class="plabel">psql</span>
+          <span class="pcmd">TABLE orders;</span>
+        </div>
+        <p class="sub" style="margin-top:0.4rem">La fila, y su posición en el WAL — el log que Debezium realmente está leyendo.</p>
+      </div>
+      <div class="col">
+        <p class="col-label" style="color:var(--gold)">&#9313; Debezium</p>
+        <div class="prompt" data-copy="curl -s http://localhost:18083/connectors/orders-cdc/status">
+          <span class="plabel">estado del conector</span>
+          <span class="pcmd">curl .../connectors/orders-cdc/status</span>
+        </div>
+        <p class="sub" style="margin-top:0.4rem">Busca <span class="ink-mono">RUNNING/RUNNING</span> — estado del conector, luego estado de la tarea.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 35 · HOP 3: KAFKA ──────────────────────────────── -->
+<section class="slide" id="s35" data-speaker="Salto tres: el registro de Kafka en sí. Señala cinco cosas — key, value, partition, offset, y el schema ID de Confluent prefijado en los bytes del value. La trampa a nombrar explícitamente: un offset identifica un evento dentro de su partición, punto. NO te dice el orden en que los eventos de dos pedidos distintos llegaron al estado actual, porque este topic tiene tres particiones y distintas keys pueden caer en particiones distintas. El ordenamiento está garantizado por key dentro de una partición, no globalmente en todo el topic.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">salto &#9314; &middot; kafka</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Un offset identifica <em>un evento,</em> no un pedido.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <tr><th>Campo</th><th>Qué te dice</th></tr>
+      <tr><td>key</td><td>la clave primaria del pedido — lo enruta a una partición</td></tr>
+      <tr><td>value</td><td>el sobre CDC codificado en Avro (before/after/source)</td></tr>
+      <tr><td>partition</td><td>una de <span class="term">3</span> &mdash; <span class="ink-mono">cdc.public.orders</span> tiene 3 particiones</td></tr>
+      <tr><td>offset</td><td>la posición de este evento solo dentro de <em>su</em> partición</td></tr>
+      <tr><td>schema ID</td><td>el ID de la registry de Confluent codificado en los primeros 5 bytes del value</td></tr>
+    </table>
+    <div class="callout danger reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="ico" style="color:var(--red)">!</div>
+      <div class="ctxt"><strong>El offset no ordena nada entre particiones.</strong> Con 3 particiones, los eventos de dos pedidos distintos pueden caer en particiones distintas sin relación alguna entre sus offsets. El offset identifica un evento dentro de su propia partición; no es un número de secuencia global para el estado actual.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 36 · HOP 4: SPARK — CHECKPOINT ≠ CONSUMER LAG ─── -->
+<section class="slide" id="s36" data-speaker="Salto cuatro, y aquí desacelera — esta es la distinción que el panel del dashboard 'offset-head distance' existe para enseñar. Spark Structured Streaming NO usa un consumer group de Kafka. Rastrea su propio progreso de lectura como offsets escritos en el directorio de checkpoint de Spark, que vive en un volumen persistente específicamente para que un reinicio retome en lugar de reproducir desde cero. Como esos offsets son privados del checkpoint e invisibles para la API de offsets de consumer-group propia de Kafka, no puedes apuntar una herramienta normal de lag de Kafka a esta pipeline y obtener un número real — que es exactamente por qué el panel de Grafana se llama offset-head distance y no consumer lag. Nombrarlo correctamente es todo el punto de esta diapositiva.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">salto &#9315; &middot; spark</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Los offsets del checkpoint <em>no son</em> offsets de consumer-group.</h2>
+    <p class="sub reveal" style="margin-top:0.5rem">Spark rastrea su propio progreso de lectura. La API de consumer-group de Kafka nunca lo ve.</p>
+    <div class="callout danger reveal" style="margin-top:clamp(0.9rem,1.8vh,1.3rem)">
+      <div class="ico" style="color:var(--red)">!</div>
+      <div class="ctxt"><strong>Estos offsets viven en el checkpoint de Spark, en un volumen persistente — NO son commits de consumer-group de Kafka.</strong> Esa es la razón entera por la que la métrica del dashboard se llama <span class="term">offset-head distance</span> y no <span class="term hot">consumer lag</span>: una herramienta estándar de lag de Kafka consulta offsets de consumer-group, y esta pipeline nunca escribe ninguno.</div>
+    </div>
+    <p class="lede reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">Por qué el checkpoint tiene que estar en un volumen persistente, no en <span class="ink-mono">/tmp</span>: si lo pierdes, Spark no tiene memoria de lo que ya procesó.</p>
+  </div>
+</section>
+
+<!-- ─── 37 · HOP 5: CLICKHOUSE — RAW ROWS VS FINAL ────── -->
+<section class="slide" id="s37" data-speaker="Salto cinco. Muestra primero la tabla cruda con FINAL omitido — pueden existir varias filas físicas para el mismo order_id, porque ReplacingMergeTree solo fusiona versiones duplicadas en segundo plano, con su propio calendario, no en el instante en que llega una fila. Luego añade FINAL y vuelve a correr la misma consulta: ahora ClickHouse fusiona al momento de leer y devuelve exactamente una fila, la de mayor versión. Si esa fila ganadora resulta ser un marcador de delete, dilo explícitamente: el merge no sabe que 'delete' es un caso especial, es la capa de la API un salto después la que reconoce el marcador y lo convierte en un 404. FINAL arregla la duplicación; no implementa por sí solo la semántica de soft-delete.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">salto &#9316; &middot; clickhouse</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Filas crudas vs. <em><span class="ink-mono">FINAL</span></em></h2>
+    <div class="two-col reveal" style="margin-top:clamp(1rem,2vh,1.5rem)">
+      <div class="col">
+        <p class="col-label" style="color:var(--red)">sin FINAL</p>
+        <div class="code-block" data-copy="SELECT * FROM lesson11.orders_current WHERE order_id = :id;">
+          <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">clickhouse-client</span></div>
+          <div class="code-body"><span class="r">SELECT</span> * <span class="r">FROM</span> <span class="n">lesson11.orders_current</span>
+<span class="r">WHERE</span> order_id = :id;</div>
+        </div>
+        <p class="sub" style="margin-top:0.4rem">Puede devolver varias filas físicas — una por cada versión que aún no se fusionó.</p>
+      </div>
+      <div class="col">
+        <p class="col-label" style="color:var(--gold)">con FINAL</p>
+        <div class="code-block" data-copy="SELECT * FROM lesson11.orders_current FINAL WHERE order_id = :id;">
+          <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">clickhouse-client</span></div>
+          <div class="code-body"><span class="r">SELECT</span> * <span class="r">FROM</span> <span class="n">lesson11.orders_current</span> <span class="gy">FINAL</span>
+<span class="r">WHERE</span> order_id = :id;</div>
+        </div>
+        <p class="sub" style="margin-top:0.4rem">Fusiona versiones al momento de leer. Una fila: la de mayor <span class="ink-mono">version</span>.</p>
+      </div>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt"><strong>Si esa fila ganadora es un marcador de delete,</strong> <span class="ink-mono">FINAL</span> igual la devuelve — solo fusiona duplicados, no sabe que "delete" es especial. La API es la capa que lee el marcador y lo convierte en un 404.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 38 · HOP 6: API — THE WHOLE CHAIN IN ONE BODY ─── -->
+<section class="slide" id="s38" data-speaker="Salto seis, la recompensa de todo el trace: una respuesta de la API, y cada salto que acabas de visitar a mano es visible en un solo cuerpo JSON — el LSN de origen de Postgres, la identidad de partition/offset de Kafka, y el timestamp de ingesta en el sink de ClickHouse. Esto es lo que significa 'procedencia' operativamente: no un diagrama, un campo que puedes señalar en una respuesta que acabas de recibir. Pídeles que encuentren los tres campos antes de señalarlos tú.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">salto &#9317; &middot; api</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">La cadena entera, <em>un cuerpo JSON.</em></h2>
+    <p class="sub reveal" style="margin-top:0.5rem">LSN de origen, identidad de Kafka, timestamp de ingesta en el sink — todo en una sola respuesta.</p>
+    <div class="code-block reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">GET :18000/orders/{id} &middot; forma ilustrativa</span></div>
+      <div class="code-body">{
+  <span class="n">"order_id"</span>: 10494,
+  <span class="n">"amount"</span>: 111.11,
+  <span class="n">"discount_code"</span>: <span class="s">"MAGNUM11"</span>,
+  <span class="n">"version"</span>: 34317200,                        <span class="cm">// Debezium source LSN   L1/L5</span>
+  <span class="n">"source_topic"</span>: <span class="s">"cdc.public.orders"</span>,      <span class="cm">// event identity        L6</span>
+  <span class="n">"kafka_partition"</span>: 1, <span class="n">"kafka_offset"</span>: 5314,
+  <span class="n">"source_ts"</span>:   <span class="s">"2026-08-01T04:03:46.551"</span>,  <span class="cm">// Postgres changed</span>
+  <span class="n">"ingested_at"</span>: <span class="s">"2026-08-01T04:03:50.855"</span>   <span class="cm">// ClickHouse could answer</span>
+}
+
+<span class="gy">ingested_at - source_ts = 4.304s</span>  <span class="cm">&lt;- this order's own transit time</span></div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="ico" style="color:var(--gold)">&#10003;</div>
+      <div class="ctxt">Esto es procedencia que puedes señalar, no un diagrama que tienes que confiar: el mismo LSN del salto &#9312;, el mismo partition/offset del salto &#9314;, el mismo tiempo de ingesta del salto &#9316; — en una sola respuesta.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 39 · PREDICT: UPDATE, DELETE, RESTART ─────────── -->
+<section class="slide" id="s39" data-speaker="Toma la predicción antes de revelar nada. Pregunta: actualiza el pedido, bórralo, y luego reinicia el procesador — ¿cuántas filas hay ahora en ClickHouse, y qué devuelve la API? Deja que la gente se comprometa con una respuesta en voz alta. La trampa en la que cae la mayoría es asumir que un reinicio más replay significa que la duplicación es un bug; es lo opuesto — que el replay aterrice como MÁS filas físicas es la prueba de que la pipeline está haciendo exactamente lo que el estado actual versionado fue diseñado para hacer. Revela solo después de unas cuantas adivinanzas.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">predice</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Actualízalo. Bórralo. <em>Reinicia el procesador.</em></h2>
+    <p class="lede reveal" style="margin-top:clamp(0.7rem,1.4vh,1.1rem)">Predice: ¿cuántas filas hay ahora en ClickHouse para ese pedido, y qué devuelve la API?</p>
+    <div class="spoiler reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <table class="dtable">
+        <tr><th>Pregunta</th><th>Respuesta</th></tr>
+        <tr><td>Conteo de filas crudas</td><td class="cool">crece — el replay es real y físico</td></tr>
+        <tr><td>Estado actual</td><td class="cool">se mantiene correcto — <span class="ink-mono">FINAL</span> sigue resolviendo a la versión más alta</td></tr>
+        <tr><td>El pedido borrado</td><td>oculto por el marcador de delete ganador</td></tr>
+        <tr><td>Respuesta de la API</td><td class="hot">404</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 40 · DASHBOARD AS CAUSAL GRAPH ────────────────── -->
+<section class="slide" id="s40" data-speaker="Antes de mostrar cualquier etiqueta, pídele a la clase que exprese en voz alta la dirección de la causalidad: ¿el movimiento de qué salto hace que se mueva el siguiente? Solo después de que se comprometan con un orden, revela la versión etiquetada. El punto no es memorizar cinco nombres de cajas — es que leer un dashboard requiere saber qué panel está aguas arriba de cuál, si no persigues el panel equivocado primero durante un incidente.">
+  <div class="slide-content" style="max-width:min(92vw,1050px);margin:0 auto;">
+    <div class="section-marker reveal">lee el dashboard como un grafo</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Dirección <em>antes</em> de las etiquetas.</h2>
+    <p class="sub reveal" style="margin-top:0.5rem">Expresa el orden causal en voz alta antes de que se revelen las etiquetas.</p>
+    <div class="flow reveal" style="justify-content:center;margin-top:clamp(1rem,2vh,1.4rem)">
+      <div class="box">1</div><span class="arrow">&rarr;</span>
+      <div class="box">2</div><span class="arrow">&rarr;</span>
+      <div class="box">3</div><span class="arrow">&rarr;</span>
+      <div class="box">4</div><span class="arrow">&rarr;</span>
+      <div class="box">5</div>
+    </div>
+    <div class="spoiler reveal" style="margin-top:clamp(1rem,2vh,1.4rem)">
+      <div class="flow" style="justify-content:center">
+        <div class="box">Connect produce</div><span class="arrow">&rarr;</span>
+        <div class="box">avanza la cabeza de Kafka</div><span class="arrow">&rarr;</span>
+        <div class="box">Spark consume</div><span class="arrow">&rarr;</span>
+        <div class="box">ClickHouse queda consultable</div><span class="arrow">&rarr;</span>
+        <div class="box" style="border-color:var(--gold);color:var(--gold)">freshness &rarr; 0</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 41 · CHECKPOINT: RUN THE VERIFIER ─────────────── -->
+<section class="slide" id="s41" data-speaker="Esta es la evidencia de entrega #1 — diles explícitamente que capturen este output para su informe. Ejecuta el verificador en vivo, lee cada línea PASS en voz alta y conéctala de vuelta a un salto de esta parte: insert demuestra que los saltos 1-3 están bien conectados, update demuestra el ordenamiento LSN-como-version, la línea de nullable-update es la que la gente no espera — un update con NULL no debe resucitar un valor no nulo anterior — y la línea de delete es el 404 que acaban de predecir dos diapositivas atrás. La última línea PASS es toda la pipeline expresada en una sola frase.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">punto de control</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Ejecuta el verificador. <em>Guarda este output.</em></h2>
+    <p class="sub reveal" style="margin-top:0.5rem">Esta es la evidencia de entrega #1 — captúrala para el informe.</p>
+    <div class="prompt reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)" data-copy="uv run python scripts/verify.py">
+      <span class="plabel">ejecútalo</span>
+      <span class="pcmd">uv run python scripts/verify.py</span>
+    </div>
+    <div class="code-block reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="code-header"><div class="code-dot"></div><div class="code-dot"></div><div class="code-dot"></div><span class="code-label">salida</span></div>
+      <div class="code-body"><span class="gy">PASS</span> insert: id=<span class="canary-id">208</span> event=cdc.public.orders:1:80
+<span class="gy">PASS</span> update: API exposes the higher-LSN current state
+<span class="gy">PASS</span> nullable update: NULL did not resurrect the before image
+<span class="gy">PASS</span> delete: higher-LSN marker wins and API returns 404
+<span class="gy">PASS</span>: Postgres &rarr; Debezium &rarr; Avro/Kafka &rarr; Spark &rarr; ClickHouse &rarr; API</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 42 · BREAK ─────────────────────────────────────── -->
+<section class="slide deep" id="s42" data-speaker="Descanso de diez minutos. Da un avance de lo que viene: la Parte tres rompe lo que acaban de demostrar que funciona — primero suavemente, evolucionando el esquema, y luego de verdad, induciendo backpressure a propósito. Diles que de verdad se pongan de pie.">
+  <div class="geo geo-circle"></div>
+  <div class="geo geo-dot"></div>
+  <div class="geo geo-line"></div>
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="kicker reveal">Descanso</div>
+    <h1 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Demostraste que funciona. <em>Ahora rómpelo.</em></h1>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem)">Sigue: evoluciona el esquema en vivo, y luego empuja la pipeline a backpressure real a propósito.</p>
+    <div class="timer reveal" id="breakTimer2" data-seconds="600">
+      <div class="timer-face">
+        <span class="timer-disp">10:00</span>
+        <span class="timer-hint">click to start / pause</span>
+      </div>
+      <div class="timer-controls">
+        <button class="timer-btn" data-add="60" type="button">+1 min</button>
+        <button class="timer-btn" data-add="30" type="button">+30 s</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 50 · PART THREE DIVIDER ────────────────────────── -->
+<section class="slide deep" id="s50" data-speaker="Enmarca la Parte tres en una frase: una pipeline que solo funciona bajo condiciones ideales no ha sido demostrada, ha sido exhibida. Esta parte hace dos cosas a propósito — evolucionar el esquema con seguridad mientras la carga sigue fluyendo, y luego inducir deliberadamente backpressure y ver al dashboard decir la verdad sobre eso. ~50 minutos.">
+  <div class="geo geo-circle"></div>
+  <div class="geo geo-dot"></div>
+  <div class="geo geo-line"></div>
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="kicker reveal">Parte tres &middot; ~50 min</div>
+    <h1 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Evoluciónala. Luego haz que se <em>quede atrás.</em></h1>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem)">Un cambio de esquema bajo carga en vivo, a propósito. Backpressure real, a propósito. Y luego la única diapositiva de dashboard que confunde a todos la primera vez que la ven.</p>
+  </div>
+</section>
+
+<!-- ─── 51 · PREDICT: DISCOUNT_CODE ORDER ─────────────── -->
+<section class="slide" id="s51" data-speaker="Toma la predicción antes de explicar expand/contract. El plan instintivo siempre es 'añadir discount_code a Postgres primero, ya que ahí es donde vive la feature' — deja que alguien diga eso, y luego pregunta qué pasa aguas abajo. El punto: un dashboard de pipeline en verde demuestra que los eventos fluyen, NO demuestra que algún campo en particular sobrevivió el viaje. O un lector viejo descarta en silencio un campo que no reconoce, o — peor — un lector con un contrato más estricto simplemente falla por completo contra un sink que no se ha puesto al día.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">predice</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Añade la columna en Postgres <em>primero.</em> ¿Qué se rompe?</h2>
+    <p class="lede reveal" style="margin-top:clamp(0.7rem,1.4vh,1.1rem)">Añades <span class="ink-mono">discount_code</span> a Postgres primero — ahí es donde vive la feature. Predice qué pasa aguas abajo.</p>
+    <div class="spoiler reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <div class="callout danger">
+        <div class="ico" style="color:var(--red)">!</div>
+        <div class="ctxt">Un lector viejo descarta en silencio el campo que no reconoce — o un lector nuevo falla por completo contra un esquema de sink que no se ha puesto al día. <strong>"La pipeline está en verde" no demuestra que el campo llegó.</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 52 · EXPAND-FIRST MIGRATION, THE STEPS ────────── -->
+<section class="slide" id="s52" data-speaker="Recorre esta tabla de arriba abajo antes de ejecutar nada. La frase clave a aterrizar: aguas abajo se expande PRIMERO — a ClickHouse y al schema registry se les avisa del campo nuevo antes de que se le permita a Postgres enviarlo. Ese ordenamiento es toda la estrategia de migración. Señala específicamente el paso 6: Spark descubre el nuevo schema ID en medio del stream, sin reinicio, porque vuelve a comprobar el schema ID en cada batch que lee.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">migración expand-first</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Aguas abajo se expande <em>primero.</em></h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <tr><th>Paso</th><th>Acción</th></tr>
+      <tr><td>1</td><td>añadir <span class="ink-mono">discount_code</span> anulable a ClickHouse</td></tr>
+      <tr><td>2</td><td>demostrar que un registro CDC de esquema viejo aún llega al sink</td></tr>
+      <tr><td>3</td><td>configurar la compatibilidad del subject en <span class="term">FULL</span></td></tr>
+      <tr><td>4</td><td>añadir la columna en Postgres</td></tr>
+      <tr><td>5</td><td>Debezium registra un nuevo esquema de escritor Avro</td></tr>
+      <tr><td>6</td><td class="cool">Spark descubre el nuevo schema ID — sin reinicio</td></tr>
+      <tr><td>7</td><td>demostrar que <span class="ink-mono">MAGNUM11</span> llega a ClickHouse y a la API</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ─── 53 · RUN IT: MIGRATE_DISCOUNT_CODE.PY ─────────── -->
+<section class="slide" id="s53" data-speaker="Ejecútalo en vivo, con el generador de carga aún corriendo en otro panel si es posible. Mientras corre, señala el panel de Grafana pipeline_schema_ids_in_batch y observa cómo pasa de 1 a 2 — ese es el momento en que el lector de Spark vio un batch con registros bajo el nuevo schema ID por primera vez. Enfatiza lo que NO pasa: nada se reinicia. Ningún pod rebota, ningún consumer se reagrupa. Ese es todo el pago de expand-first más compatibilidad FULL.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">ejecútalo</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Observa el panel del schema-ID <em>avanzar.</em></h2>
+    <div class="prompt reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)" data-copy="uv run python scripts/migrate_discount_code.py">
+      <span class="plabel">ejecútalo</span>
+      <span class="pcmd">uv run python scripts/migrate_discount_code.py</span>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="ico" style="color:var(--gold)">&#10003;</div>
+      <div class="ctxt">Observa el panel <span class="ink-mono">pipeline_schema_ids_in_batch</span> pasar de <strong>1 a 2</strong> mientras la carga sigue fluyendo. <strong>Nada se reinicia.</strong> Ese es expand-first más compatibilidad <span class="term">FULL</span> haciendo su trabajo.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 54 · REGISTRY V1 VS V2 ─────────────────────────── -->
+<section class="slide" id="s54" data-speaker="Muestra el diff, y sé directo sobre lo pequeño que es: un campo anulable con un default es todo el delta entre la versión 1 y la versión 2. Luego ejecuta el curl y muestra que la registry ahora lista ambas versiones. La línea a aterrizar con fuerza aquí: un schema registry guarda contratos — no migra a los consumidores por ti. Que ambas versiones se decodifiquen correctamente en la MISMA consulta de Spark en ejecución es la prueba; nadie reinició nada para que eso fuera cierto.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">la registry, antes y después</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Un campo anulable. <em>Ese es todo el diff.</em></h2>
+    <div class="two-col reveal" style="margin-top:clamp(1rem,2vh,1.4rem)">
+      <div class="col">
+        <p class="col-label" style="color:var(--gold)">v1</p>
+        <p class="lede">sin campo <span class="ink-mono">discount_code</span></p>
+      </div>
+      <div class="col">
+        <p class="col-label" style="color:var(--gold)">v2</p>
+        <p class="lede">+ <span class="ink-mono">discount_code</span>, anulable, con un default</p>
+      </div>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.9rem,1.8vh,1.3rem)" data-copy="curl -s http://localhost:18081/subjects/cdc.public.orders-value/versions">
+      <span class="plabel">la registry ahora tiene</span>
+      <span class="pcmd">curl .../subjects/cdc.public.orders-value/versions &rarr; [1, 2]</span>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="ico" style="color:var(--gold)">&#10003;</div>
+      <div class="ctxt"><strong>Un schema registry guarda contratos; no migra a los consumidores por ti.</strong> Ambas versiones se decodifican correctamente en la <em>misma</em> consulta de Spark en ejecución — eso es lo que demuestra que el contrato se mantuvo, no la entrada de la registry por sí sola.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 55 · EXPAND / CONTRACT SCOPE ──────────────────── -->
+<section class="slide" id="s55" data-speaker="Nombra el patrón explícitamente: esto es expand/contract, una técnica estándar de evolución de esquemas, y la Lección 11 solo realiza la mitad aditiva, expand. Explica claramente por qué la mitad de contract — quitar el camino viejo, deprecar el campo que ya nadie lee, coordinar que cada consumidor realmente haya migrado — está deliberadamente fuera de alcance: es un problema de migración de producción con riesgo real de outage, no un mecanismo que esta lección pueda demostrar en vivo con seguridad. Contract es donde viven los outages, porque estás quitando algo de lo que un consumidor podría seguir dependiendo.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">expand / contract</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Solo hicimos la mitad <em>expand</em>.</h2>
+    <ul class="bullets reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <li>Lo que acabas de correr es <strong>expand</strong>: añadir, aditivo, backward-compatible, seguro de ejecutar bajo carga en vivo.</li>
+      <li><strong>Contract</strong> — quitar el campo viejo, forzar a cada consumidor a dejarlo — está deliberadamente fuera de alcance hoy.</li>
+    </ul>
+    <div class="callout danger reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="ico" style="color:var(--red)">!</div>
+      <div class="ctxt"><strong>Contract es donde viven los outages.</strong> Quitar algo significa demostrar que cada consumidor ya dejó de depender de ello — eso es un problema de coordinación y rollback, no un mecanismo de schema registry, y es una migración de producción real, no una demo de lección.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 56 · THE BACKPRESSURE EXPERIMENT ──────────────── -->
+<section class="slide" id="s56" data-speaker="Preséntalo como un experimento, no solo un comando. Recrea el stream-processor con SINK_DELAY_SECONDS=10 inyectado — di explícitamente que esta variable de entorno es un punto de inyección de fallos exclusivo de la lección, no existe en ninguna ruta de código de producción, está ahí específicamente para que puedas fabricar backpressure a demanda. Luego lanza un burst de rate-200 durante 60 segundos y observa Grafana en vivo — el burst más pequeño de rate-100/30s se probó y nunca cruza el umbral de alerta de 1000 registros, así que usa estos parámetros exactos o la alerta Lesson11KafkaLagHigh nunca se dispara. Recrea de nuevo sin la variable de entorno para quitar el retraso inyectado y observar la recuperación.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">el experimento de backpressure</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Inyecta un retraso. <em>Luego golpéala fuerte.</em></h2>
+    <div class="prompt reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)" data-copy="SINK_DELAY_SECONDS=10 docker compose up -d --force-recreate stream-processor">
+      <span class="plabel">1 &middot; inyecta un retraso de sink de 10s</span>
+      <span class="pcmd">SINK_DELAY_SECONDS=10 docker compose up -d --force-recreate stream-processor</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem)" data-copy="uv run python scripts/load_generator.py --rate 200 --duration 60">
+      <span class="plabel">2 &middot; carga en ráfaga</span>
+      <span class="pcmd">uv run python scripts/load_generator.py --rate 200 --duration 60</span>
+    </div>
+    <div class="prompt reveal" style="margin-top:clamp(0.5rem,1vh,0.8rem)" data-copy="docker compose up -d --force-recreate stream-processor">
+      <span class="plabel">3 &middot; quita el retraso, recupera</span>
+      <span class="pcmd">docker compose up -d --force-recreate stream-processor</span>
+    </div>
+    <div class="callout note reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt"><span class="ink-mono">SINK_DELAY_SECONDS</span> es un punto de inyección exclusivo de la lección — no existe en ninguna ruta de código de producción. Existe para que puedas fabricar backpressure a demanda en vez de esperar a que ocurra.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 57 · PREDICT: FOUR CURVES ──────────────────────── -->
+<section class="slide" id="s57" data-speaker="Antes de pasar a Grafana, haz que todos se comprometan con una predicción en papel o en voz alta: bosquejen la forma de cuatro curvas bajo el delay+burst que acaban de disparar. No revelen el dashboard real todavía — el punto de esta diapositiva es la adivinanza, la siguiente diapositiva es el chequeo. Cuatro curvas: throughput de llegada vs. procesado, offset-head distance, duración del batch contra el trigger de 5 segundos, y freshness.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">predice</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Bosqueja cuatro curvas <em>antes</em> de mirar.</h2>
+    <p class="lede reveal" style="margin-top:clamp(0.7rem,1.4vh,1.1rem)">Predice la forma de cada una, antes de abrir Grafana:</p>
+    <ul class="bullets reveal" style="margin-top:clamp(0.6rem,1.2vh,0.9rem)">
+      <li>throughput de llegada vs. throughput procesado</li>
+      <li>offset-head distance</li>
+      <li>duración del batch, contra el trigger de 5s</li>
+      <li>freshness</li>
+    </ul>
+    <div class="spoiler reveal" style="margin-top:clamp(0.9rem,1.7vh,1.3rem)">
+      <p class="lede">Forma aproximada: dos líneas de throughput que se separan, una distancia que sube, una duración que cruza una línea plana de 5s, un freshness que envejece — y luego las cuatro reconvergen una vez que se quita el retraso.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 58 · WHAT YOU SHOULD ACTUALLY SEE ─────────────── -->
+<section class="slide" id="s58" data-speaker="Ahora abre el dashboard real y confirma cada una de las cuatro predicciones contra lo que realmente pasó. Aterriza la condición de recuperación como una regla dura: la recuperación requiere una tasa de drenaje mayor que la tasa de llegada — si la pipeline solo puede procesar a o por debajo de la tasa a la que está llegando, el backlog nunca se reduce, punto, ninguna cantidad de espera lo arregla. Luego haz el callback a la Lección 9 explícitamente: midieron con sus propias manos que el piso de Spark es max(trigger, batch_time) — por eso exactamente cruzar el trigger de 5s es el momento en que empieza el encolamiento, no algún otro umbral. Datos reales de la corrida grabada (SINK_DELAY_SECONDS=10, --rate 200 --duration 60): offset-head distance 0 -> 455 -> 843 -> 1210 -> 1603 -> 1957 pico y luego baja; latencia end-to-end 14s -> 62s; duración de batch p95 ~19s contra el trigger de 5s; de vuelta a 0 en ~40s de quitar el retraso. El pico de lag cruza el umbral de alerta de 1000 registros así que Lesson11KafkaLagHigh se dispara de verdad. La inflexión es el momento de enseñanza: el lag alcanza su pico y cae en el instante en que se detiene la llegada, porque el drenaje finalmente supera la llegada - haz que ellos nombren eso antes de señalarlo tú.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">lo que deberías ver realmente</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">La recuperación necesita <em>tasa de drenaje &gt; tasa de llegada.</em></h2>
+    <ul class="bullets reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <li>la llegada sube <strong>por encima</strong> del throughput procesado</li>
+      <li>el offset-head distance <strong>crece</strong></li>
+      <li>la duración del batch <strong>cruza el trigger de 5s</strong> — el momento en que los batches empiezan a encolarse</li>
+      <li>el freshness <strong>envejece</strong></li>
+    </ul>
+    <div class="callout danger reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="ico" style="color:var(--red)">!</div>
+      <div class="ctxt">La recuperación requiere <strong>tasa de drenaje &gt; tasa de llegada</strong> — de lo contrario el backlog nunca se pone al día, sin importar cuánto esperes.</div>
+    </div>
+    <p class="sub reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)"><strong>Callback &middot; Lección 9:</strong> el piso de Spark es <span class="ink-mono">max(trigger, batch_time)</span> — ustedes mismos lo midieron. Por eso exactamente cruzar el trigger de 5s es el umbral de encolamiento, no algún otro número.</p>
+  </div>
+</section>
+
+<!-- ─── 59 · THE IDLE-SOURCE TRAP ──────────────────────── -->
+<section class="slide" id="s59" data-speaker="Este es el punto más agudo de la Parte tres — desacelera y dale tiempo real. Estos dos números son reales, observados en el sistema en funcionamiento mientras estaba perfectamente saludable y nadie le escribía: freshness en 2218 segundos — más de 37 minutos obsoleto — mientras transit está en -1, lo que significa que no hay nada que medir. Pregunta: ¿está rota la pipeline? No lo está. Nadie hizo un pedido. Que la obsolescencia suba por sí sola no prueba que algo esté mal; puede simplemente significar que la fuente quedó inactiva. Luego muestra qué hacen ambos números bajo carga en vivo: convergen a aproximadamente los mismos ~13.8 segundos. El punto de enseñanza: una sola métrica te engañará en una dirección u otra — precisamente por eso el dashboard grafica tanto freshness como transit lado a lado, nunca solo uno.">
+  <div class="slide-content" style="max-width:min(92vw,1050px);margin:0 auto;">
+    <div class="section-marker reveal hot">la trampa de la fuente inactiva</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Que suba la obsolescencia <em>no</em> significa que esté rota.</h2>
+    <p class="sub reveal" style="margin-top:0.5rem">Números reales, observados mientras la pipeline estaba perfectamente saludable y nadie escribía.</p>
+    <div class="two-col reveal" style="margin-top:clamp(1rem,2vh,1.5rem)">
+      <div class="col" style="background:var(--panel);border-radius:6px;padding:clamp(0.8rem,1.6vw,1.2rem)">
+        <p class="col-label" style="color:var(--red)">fuente inactiva &middot; ~37 min sin escrituras</p>
+        <div class="stat red">2218.394</div>
+        <div class="stat-label">api_data_freshness_seconds</div>
+        <div class="stat" style="margin-top:0.6rem">-1</div>
+        <div class="stat-label">api_pipeline_transit_seconds</div>
+      </div>
+      <div class="col" style="background:var(--panel);border-radius:6px;padding:clamp(0.8rem,1.6vw,1.2rem)">
+        <p class="col-label" style="color:var(--gold)">bajo carga en vivo</p>
+        <div class="stat cool">~13.8</div>
+        <div class="stat-label">api_data_freshness_seconds</div>
+        <div class="stat cool" style="margin-top:0.6rem">~13.8</div>
+        <div class="stat-label">api_pipeline_transit_seconds</div>
+      </div>
+    </div>
+    <div class="callout proof reveal" style="margin-top:clamp(0.9rem,1.7vh,1.2rem)">
+      <div class="ico" style="color:var(--gold)">&#10003;</div>
+      <div class="ctxt">El freshness sube siempre que nadie escribe — <strong>una fuente inactiva no es un fallo.</strong> El transit se mantiene plano mientras está inactiva y solo sube bajo backpressure real. Una sola métrica te engañará; por eso el dashboard grafica ambas.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 60 · THREE-METRIC INCIDENT DRILL ──────────────── -->
+<section class="slide" id="s60" data-speaker="Ejercicio práctico, 5 minutos y luego discusión en grupo. Forma parejas de estudiantes. Dale a cada pareja una captura del dashboard con un panel deliberadamente oculto — no pueden verlo todo. Su tarea: nombrar qué frontera está fallando a partir de los paneles que SÍ tienen, y expresar la ÚNICA métrica adicional que pedirían para desambiguar entre explicaciones en competencia. Circula mientras trabajan. El punto del debrief: nombrar la métrica faltante es la habilidad real — cualquiera puede mirar fijo un panel en rojo, el trabajo es saber qué evidencia resolvería la pregunta.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">ejercicio &middot; 5 min</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Nombra la frontera. <em>Pide una métrica.</em></h2>
+    <ul class="bullets reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <li>Formen parejas. Reciben una captura del dashboard con <strong>un panel oculto.</strong></li>
+      <li>Nombren qué frontera está fallando, usando solo lo que pueden ver.</li>
+      <li>Expresen la <strong>única</strong> métrica faltante que desambiguaría la causa.</li>
+      <li>5 minutos, luego discutimos en grupo.</li>
+    </ul>
+    <div class="callout note reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt">La habilidad no es detectar un panel en rojo — es saber qué único número adicional resolvería cuál de dos explicaciones es cierta.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 61 · THE LEDGER, REVISITED ────────────────────── -->
+<section class="slide" id="s61" data-speaker="Trae de vuelta el libro de garantías de antes y haz que expresen, frontera por frontera, qué pueden afirmar ahora desde la experiencia directa en lugar de desde un diagrama. Aterriza las dos líneas con fuerza, una tras otra: puedes afirmar estado actual effectively-once — filas versionadas más FINAL hacen inofensivo el replay, lo demostraste dos diapositivas después del ejercicio de predecir-y-reiniciar. NO puedes afirmar una transacción distribuida exactly-once — la atomicidad termina en la frontera del sistema, nada aquí abarca Postgres, Kafka y ClickHouse dentro de un solo commit.">
+  <div class="slide-content" style="max-width:min(92vw,1050px);margin:0 auto;">
+    <div class="section-marker reveal">el libro, revisitado</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Lo que puedes afirmar <em>honestamente</em> ahora.</h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.7rem,1.4vh,1rem)">
+      <tr><th>Frontera</th><th>Posición durable</th><th>Garantía honesta</th></tr>
+      <tr><td>Postgres &rarr; Debezium</td><td>WAL LSN + slot de replicación</td><td>CDC reproducible; normalmente at least once</td></tr>
+      <tr><td>Debezium &rarr; Kafka</td><td>topic, partition, offset; schema ID</td><td>log ordenado y durable por partición</td></tr>
+      <tr><td>Kafka &rarr; Spark</td><td>offsets en el checkpoint de Spark</td><td>progreso exactly-once <em>dentro de Spark</em></td></tr>
+      <tr><td>Spark &rarr; ClickHouse</td><td>LSN como versión; (partition, offset) como identidad</td><td>el sink puede escribirse más de una vez</td></tr>
+      <tr><td>ClickHouse &rarr; API</td><td>resultado de consulta en un momento de ingesta conocido</td><td>estado actual, obsolescencia medible</td></tr>
+    </table>
+    <div class="two-col reveal" style="margin-top:clamp(0.9rem,1.7vh,1.2rem)">
+      <div class="col">
+        <p class="col-label" style="color:var(--gold)">puedes afirmar</p>
+        <p class="lede">estado actual effectively-once</p>
+      </div>
+      <div class="col">
+        <p class="col-label" style="color:var(--red)">NO puedes afirmar</p>
+        <p class="lede">una transacción distribuida exactly-once</p>
+      </div>
+    </div>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)"><strong>La atomicidad termina en la frontera del sistema.</strong> Nada aquí confirma Postgres, Kafka y ClickHouse juntos.</p>
+  </div>
+</section>
+
+<!-- ─── 62 · CLOSE INTO LESSON 12 ──────────────────────── -->
+<section class="slide deep" id="s62" data-speaker="Este es el cierre del contenido técnico — haz que aterrice, luego deja de hablar y deja que repose un segundo antes de pasar a la diapositiva del entregable. La Lección 11 demostró que una pipeline saludable puede entenderse y evolucionar — cada salto era inspeccionable, la migración fue segura porque fue aditiva, el backpressure era legible en un dashboard en lugar de ser un misterio. La Lección 12 es el ejercicio opuesto: este mismo sistema, entregado roto en seis lugares, y no eligen cuáles seis. Todo en la Parte dos de hoy — el trace de seis saltos, leer el dashboard como un grafo causal, los dos números de freshness — es el kit de herramientas que necesitarán la próxima vez, no solo el contenido de hoy.">
+  <div class="geo geo-circle"></div>
+  <div class="geo geo-dot"></div>
+  <div class="geo geo-line"></div>
+  <div class="slide-content" style="max-width:min(92vw,880px);margin:0 auto;align-items:center;text-align:center;justify-content:center;">
+    <div class="kicker reveal">Cerrando hacia la Lección 12</div>
+    <h1 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem);font-size:clamp(1.9rem,5.2vw,3.8rem)">Una pipeline saludable puede <em>entenderse y evolucionar.</em></h1>
+    <p class="lede reveal" style="margin-top:clamp(0.9rem,2vh,1.4rem);max-width:680px;margin-left:auto;margin-right:auto;">La Lección 12 te entrega este mismo sistema, roto en seis lugares — y no eliges cuáles seis.</p>
+  </div>
+</section>
+
+<!-- ─── 63 · THE DELIVERABLE ──────────────────────────── -->
+<section class="slide" id="s63" data-speaker="La lista de entrega real. Léela como un checklist, no como prosa: una pipeline end-to-end en funcionamiento que puedan demostrar, el output PASS del verificador guardado desde la Parte dos como evidencia #1, una captura del dashboard de Grafana que realmente muestre lag/throughput/latencia en cada etapa (no solo un panel), y un informe corto que cubra tanto la migración de esquema como la corrida de backpressure. Repo, README, AGENTS.md, entregado vía PR — mismo formato que cada lección de este curso.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal">el entregable</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Lo que <em>entregas.</em></h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <tr><th>Elemento</th><th>Qué demuestra</th></tr>
+      <tr><td>Pipeline end-to-end en funcionamiento</td><td>el camino dorado, demostrado en vivo</td></tr>
+      <tr><td>Output del verificador</td><td>evidencia #1 — guardado desde la Parte dos</td></tr>
+      <tr><td>Dashboard de Grafana</td><td>lag / throughput / latencia en cada etapa</td></tr>
+      <tr><td>Informe corto</td><td>la migración, y la corrida de backpressure</td></tr>
+    </table>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">Repo + README + <span class="ink-mono">AGENTS.md</span>, entregado vía PR — mismo formato que cada lección.</p>
+  </div>
+</section>
+
+<!-- ─── 70 · ANNEX DIVIDER ─────────────────────────────── -->
+<section class="slide deep" id="s70" data-speaker="Divisor corto antes de dos diapositivas de cierre sobre 'qué no hicimos y por qué'. Esto no es relleno — es prueba de criterio, la misma habilidad con la que cerró la Lección 10: saber cuándo NO añadir una herramienta.">
+  <div class="geo geo-circle"></div>
+  <div class="geo geo-dot"></div>
+  <div class="geo geo-line"></div>
+  <div class="slide-content" style="max-width:min(92vw,900px);margin:0 auto;">
+    <div class="kicker reveal">Anexo</div>
+    <h1 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Lo que <em>dejamos fuera.</em></h1>
+    <p class="sub reveal" style="margin-top:clamp(0.8rem,1.5vh,1.2rem)">Y qué hardening de producción este stack todavía no hace.</p>
+  </div>
+</section>
+
+<!-- ─── 71 · DELIBERATELY LEFT OUT ─────────────────────── -->
+<section class="slide" id="s71" data-speaker="Recorre cada fila y haz explícito el razonamiento, no solo el nombre de la herramienta — esta es una diapositiva de criterio, no de trivia. CockroachDB de la Lección 2: la distribución no era el cuello de botella aquí, un solo nodo de Postgres nunca fue la restricción. DuckDB de las Lecciones 3/4: OLAP por lotes, no una capa de servicio — forma equivocada para una API que necesita estado actual en vivo. Airflow/Dagster de la Lección 4: orquestación, no streaming — nada aquí corre con un calendario. Flink de la Lección 9: lo midieron ustedes mismos, 7.6s contra los 8.0s de Spark con un trigger de 2s — no suficiente diferencia para justificar un segundo runtime de streaming apretado en una caja de 8 GB. Cierra haciendo eco de la propia línea de cierre de la Lección 10, ya que es la misma disciplina aplicada de nuevo.">
+  <div class="slide-content" style="max-width:min(92vw,1050px);margin:0 auto;">
+    <div class="section-marker reveal">dejado fuera deliberadamente</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Añadir contenedores no habría <em>fortalecido el argumento.</em></h2>
+    <table class="dtable reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <tr><th>Herramienta</th><th>Lección</th><th>Por qué está fuera</th></tr>
+      <tr><td>CockroachDB</td><td>2</td><td>la distribución no es el cuello de botella aquí</td></tr>
+      <tr><td>DuckDB</td><td>3 / 4</td><td>OLAP por lotes, no una capa de servicio</td></tr>
+      <tr><td>Airflow / Dagster</td><td>4</td><td>orquestación, no streaming</td></tr>
+      <tr><td>Flink</td><td>9</td><td>se midió 7.6s vs. los 8.0s de Spark con un trigger de 2s — no vale la pena un segundo runtime en una caja de 8 GB</td></tr>
+    </table>
+    <div class="callout note reveal" style="margin-top:clamp(0.8rem,1.5vh,1.1rem)">
+      <div class="ico" style="color:var(--gold)">&#9432;</div>
+      <div class="ctxt"><strong>Callback &middot; línea de cierre de la Lección 10:</strong> "Diez lecciones, una fila. &hellip; La habilidad nunca fue las herramientas. Fue medir si las necesitabas."</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── 72 · PRODUCTION HARDENING NOT DONE ────────────── -->
+<section class="slide" id="s72" data-speaker="Diapositiva de cierre honesto, misma convención que la diapositiva de advertencias de la Lección 10. Lee la lista con llaneza — estos no son defectos ocultos, son recortes de alcance explícitos, y nombrarlos en voz alta es parte de la honestidad del entregable. Pruebas de contrato de esquema en CI habrían detectado un cambio incompatible antes de que se publicara, no solo después. El manejo de dead-letter importa porque ahora mismo un registro indecodificable no tiene a dónde ir. El monitoreo de conectores y slots importa porque un slot de replicación atascado hace crecer el WAL en silencio hasta llenar el disco. Un Kafka de un solo broker y un ClickHouse sin replicación significan que la configuración de hoy no tolera perder un nodo. El dimensionamiento de retención ligado al peor caso de tiempo de recuperación es lo que evita que un outage largo también pierda historial. Y la mitad de contract de expand/contract — quitar un campo viejo con seguridad — es el riesgo de migración que esta lección explícitamente no tocó.">
+  <div class="slide-content" style="max-width:min(92vw,1000px);margin:0 auto;">
+    <div class="section-marker reveal hot">hardening de producción que este stack NO hace</div>
+    <h2 class="reveal" style="margin-top:clamp(0.6rem,1.5vh,1rem)">Nombra las brechas <em>en voz alta.</em></h2>
+    <ul class="bullets hot reveal" style="margin-top:clamp(0.8rem,1.6vh,1.2rem)">
+      <li>pruebas de contrato de esquema en CI</li>
+      <li>manejo de dead-letter para registros indecodificables</li>
+      <li>monitoreo de conectores / slots y alertas de crecimiento de slot</li>
+      <li>Kafka multi-broker con RF &gt; 1</li>
+      <li>replicación de ClickHouse</li>
+      <li>dimensionamiento de retención ligado al peor caso de tiempo de recuperación</li>
+      <li>la mitad de contract de expand/contract</li>
+    </ul>
+  </div>
+</section>
+
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const bar=document.getElementById('progressBar');
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.classList.add('visible');
+      const i=slides.indexOf(e.target);
+      bar.style.width=((i+1)/slides.length*100)+'%';
+    }
+  });
+},{threshold:0.5});
+slides.forEach(s=>io.observe(s));
+
+function go(n){const i=Math.max(0,Math.min(slides.length-1,n));slides[i].scrollIntoView({behavior:'smooth'});}
+function current(){
+  let best=0,bestTop=Infinity;
+  slides.forEach((s,i)=>{const t=Math.abs(s.getBoundingClientRect().top);if(t<bestTop){bestTop=t;best=i;}});
+  return best;
+}
+window.addEventListener('keydown',(e)=>{
+  if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();go(current()+1);}
+  else if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(current()-1);}
+  else if(e.key==='Home'){e.preventDefault();go(0);}
+  else if(e.key==='End'){e.preventDefault();go(slides.length-1);}
+  else if(e.key==='r'||e.key==='R'){slides[current()].querySelectorAll('.spoiler').forEach(s=>s.classList.add('revealed'));}
+});
+document.querySelectorAll('.spoiler').forEach(s=>s.addEventListener('click',()=>s.classList.add('revealed')));
+
+// copy buttons for prompts and code blocks
+document.querySelectorAll('[data-copy]').forEach(block => {
+  const header = block.querySelector('.code-header, .plabel');
+  if (!header) return;
+  const btn = document.createElement('button');
+  btn.className = 'code-copy';
+  btn.type = 'button';
+  btn.textContent = 'copy';
+  btn.addEventListener('click', () => {
+    navigator.clipboard.writeText(block.getAttribute('data-copy') || '').then(() => {
+      btn.textContent = 'copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1500);
+    }).catch(() => { btn.textContent = 'failed'; setTimeout(() => btn.textContent = 'copy', 1500); });
+  });
+  header.appendChild(btn);
+});
+
+// canary id — one editable value, synced to every .canary-id span (and
+// every .canary-id-input field) across the whole deck, persisted so it
+// survives a reload mid-class.
+(function(){
+  const STORAGE_KEY = 'l11-canary-id';
+  const spans = document.querySelectorAll('.canary-id');
+  const inputs = document.querySelectorAll('.canary-id-input');
+  function apply(value){
+    const clean = (value || '').trim();
+    const display = clean || '208';
+    spans.forEach(s => { s.textContent = display; });
+    inputs.forEach(i => { if (i.value !== clean) i.value = clean; });
+  }
+  function setValue(value){
+    apply(value);
+    try { localStorage.setItem(STORAGE_KEY, value || ''); } catch (e) { /* ignore */ }
+  }
+  let stored = '';
+  try { stored = localStorage.getItem(STORAGE_KEY) || ''; } catch (e) { /* ignore */ }
+  apply(stored);
+  inputs.forEach(input => {
+    input.value = stored;
+    input.addEventListener('input', () => setValue(input.value));
+  });
+})();
+
+// break timers
+(function(){
+  function fmt(s){
+    const m = Math.floor(s/60).toString().padStart(2,'0');
+    const sec = (s%60).toString().padStart(2,'0');
+    return m+':'+sec;
+  }
+  document.querySelectorAll('.timer').forEach(timer=>{
+    const face = timer.querySelector('.timer-face');
+    const disp = timer.querySelector('.timer-disp');
+    const btns = timer.querySelectorAll('[data-add]');
+    if(!face || !disp) return;
+    let remaining = parseInt(timer.dataset.seconds,10) || 300;
+    let interval = null;
+    let running = false;
+    function update(){ disp.textContent = fmt(remaining); }
+    function tick(){
+      if(remaining>0){ remaining--; update(); }
+      if(remaining<=0){ stop(); timer.classList.add('done'); }
+    }
+    function start(){ if(running) return; running=true; timer.classList.add('running'); interval=setInterval(tick,1000); }
+    function stop(){ running=false; timer.classList.remove('running'); if(interval){ clearInterval(interval); interval=null; } }
+    face.addEventListener('click',()=>{ if(running) stop(); else if(remaining>0) start(); });
+    btns.forEach(b=>b.addEventListener('click',()=>{ remaining += parseInt(b.dataset.add,10); update(); if(!running && remaining>0) start(); }));
+    update();
+  });
+})();
+</script>
+</body>
+</html>
