@@ -1,0 +1,38 @@
+{
+  "format": "lesson12-incident-scenarios/v1",
+  "entrypoint": "python src-lesson12/scenarios/cli.py",
+  "safety_contract": {
+    "default_mode": "dry-run",
+    "execution_gate": "--apply",
+    "scope": "The self-contained src-lesson12 stack only; the Lesson 11 reference pipeline is never changed.",
+    "rule": "Activate at most one scenario at a time and reset it before the next team receives the environment."
+  },
+  "scenarios": [
+    {
+      "id": "poison-deserialization",
+      "topic": "l12.poison-boundary",
+      "bound": "one unknown-schema record on an isolated topic"
+    },
+    {
+      "id": "partition-hotspot",
+      "bound": "300 updates for one stable key"
+    },
+    {
+      "id": "paused-connector-slot-risk",
+      "bound": "120 source updates while Connect is paused; never a disk-fill exercise"
+    },
+    {
+      "id": "silent-data-contract",
+      "bound": "12 source rows snapshotted and restored through compensating CDC updates"
+    },
+    {
+      "id": "clickhouse-tiny-parts",
+      "bound": "40 one-row inserts followed by one explicit OPTIMIZE FINAL on the classroom table"
+    },
+    {
+      "id": "kafka-retention-risk",
+      "topic": "l12.retention-risk",
+      "bound": "128 KiB sample on a separate 1 MiB-capped topic"
+    }
+  ]
+}
