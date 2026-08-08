@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClickHouse Query Explorer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'SF Mono', 'Fira Code', monospace; background: #ffffff; color: #1f2328; padding: 24px; }
+  h1 { font-size: 18px; color: #0969da; margin-bottom: 16px; }
+  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  select, input, button { font-family: inherit; font-size: 13px; background: #f6f8fa; color: #1f2328; border: 1px solid #d0d7de; border-radius: 6px; padding: 6px 12px; }
+  button { background: #1a7f37; border-color: #1a7f37; color: #fff; cursor: pointer; font-weight: 600; }
+  button:hover { background: #2da44e; }
+  button.secondary { background: #656d76; border-color: #656d76; }
+  .meta { font-size: 12px; color: #656d76; margin-bottom: 12px; display: flex; gap: 16px; align-items: center; }
+  .meta .pill { background: #ddf4ff; color: #0969da; padding: 2px 8px; border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+  th { text-align: left; padding: 8px 12px; border-bottom: 2px solid #d0d7de; color: #656d76; font-weight: 600; white-space: nowrap; }
+  td { padding: 6px 12px; border-bottom: 1px solid #d8dee4; }
+  tr:hover td { background: #f6f8fa; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .dim { color: #6e7781; }
+  .highlight { color: #1a7f37; font-weight: 600; }
+  .warning { color: #9a6700; }
+  #raw { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 12px; font-size: 12px; max-height: 300px; overflow: auto; white-space: pre-wrap; word-break: break-all; display: none; }
+  .error { color: #cf222e; }
+  .tabs { display: flex; gap: 0; margin-bottom: 16px; }
+  .tabs button { border-radius: 6px 6px 0 0; border-bottom: none; background: #f6f8fa; color: #656d76; }
+  .tabs button.active { background: #ffffff; color: #0969da; border-color: #d0d7de; border-bottom: 2px solid #ffffff; margin-bottom: -1px; z-index: 1; }
+</style>
+</head>
+<body>
+
+<h1>&gt;_ ClickHouse Query Explorer</h1>
+
+<div class="tabs">
+  <button class="active" onclick="switchTab('revenue')">Revenue</button>
+  <button onclick="switchTab('throughput')">Throughput</button>
+  <button onclick="switchTab('top-users')">Top Users</button>
+</div>
+
+<div class="controls" id="ctrl-revenue">
+  <label>Minutes: <input type="number" id="rev-min" value="5" min="1" max="1440" style="width:60px"></label>
+  <label><input type="checkbox" id="rev-unique"> unique_users</label>
+  <button onclick="runQuery('revenue')">Run</button>
+</div>
+
+<div class="controls" id="ctrl-throughput" style="display:none">
+  <label>Minutes: <input type="number" id="tp-min" value="10" min="1" max="1440" style="width:60px"></label>
+  <button onclick="runQuery('throughput')">Run</button>
+</div>
+
+<div class="controls" id="ctrl-top-users" style="display:none">
+  <label>Minutes: <input type="number" id="tu-min" value="1" min="1" max="1440" style="width:60px"></label>
+  <label>Limit: <input type="number" id="tu-limit" value="10" min="1" max="100" style="width:60px"></label>
+  <button onclick="runQuery('top-users')">Run</button>
+</div>
+
+<div class="meta" id="meta"></div>
+
+<div id="table-container"></div>
+
+<details>
+  <summary style="cursor:pointer;color:#656d76;font-size:12px">Raw JSON</summary>
+  <pre id="raw"></pre>
+</details>
+
+<script>
+const API = 'http://localhost:8000';
+let currentTab = 'revenue';
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('[id^="ctrl-"]').forEach(d => d.style.display = 'none');
+  document.getElementById('ctrl-' + tab).style.display = 'flex';
+}
+
+async function runQuery(tab) {
+  const meta = document.getElementById('meta');
+  const container = document.getElementById('table-container');
+  const raw = document.getElementById('raw');
+  container.innerHTML = '';
+  meta.innerHTML = '<span class="dim">Running...</span>';
+
+  let url;
+  if (tab === 'revenue') {
+    const m = document.getElementById('rev-min').value;
+    const u = document.getElementById('rev-unique').checked;
+    url = `${API}/api/revenue?minutes=${m}&unique_users=${u}`;
+  } else if (tab === 'throughput') {
+    const m = document.getElementById('tp-min').value;
+    url = `${API}/api/throughput?minutes=${m}`;
+  } else {
+    const m = document.getElementById('tu-min').value;
+    const l = document.getElementById('tu-limit').value;
+    url = `${API}/api/top-users?minutes=${m}&limit=${l}`;
+  }
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    raw.style.display = 'block';
+    raw.textContent = JSON.stringify(data, null, 2);
+
+    meta.innerHTML = `
+      <span>Query: <span class="pill">${data.query_ms} ms</span></span>
+      <span>Rows: <span class="pill">${data.rows.length}</span></span>
+      <span class="dim">${url}</span>
+    `;
+
+    renderTable(tab, data);
+  } catch (e) {
+    meta.innerHTML = `<span class="error">Error: ${e.message}</span>`;
+  }
+}
+
+function renderTable(tab, data) {
+  const c = document.getElementById('table-container');
+  if (data.rows.length === 0) { c.innerHTML = '<p class="dim">No rows</p>'; return; }
+
+  let html = '<table><thead><tr>';
+
+  if (tab === 'revenue') {
+    const keys = Object.keys(data.rows[0]);
+    html += keys.map(k => `<th>${k}</th>`).join('');
+    html += '</tr></thead><tbody>';
+    data.rows.forEach(r => {
+      html += '<tr>';
+      html += `<td class="dim">${r.minute}</td>`;
+      html += `<td>${r.region}</td>`;
+      html += `<td class="num">$${r.revenue.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>`;
+      html += `<td class="num">${r.purchases}</td>`;
+      html += '</tr>';
+    });
+  } else if (tab === 'throughput') {
+    html += '<tr><th>Time</th><th class="num">Events</th><th class="num">Unique Users</th><th class="num">Uniq %</th></tr></thead><tbody>';
+    data.rows.forEach(r => {
+      const pct = ((r.unique_users / r.events) * 100).toFixed(1);
+      const cls = pct < 90 ? 'warning' : 'num';
+      html += `<tr><td class="dim">${r.minute}</td><td class="num">${r.events.toLocaleString()}</td><td class="num">${r.unique_users.toLocaleString()}</td><td class="${cls}">${pct}%</td></tr>`;
+    });
+  } else {
+    html += '<tr><th>#</th><th>User ID</th><th class="num">Total Spend</th><th class="num">Purchases</th><th class="num">Avg/Purchase</th></tr></thead><tbody>';
+    data.rows.forEach((r, i) => {
+      const avg = (r.total_spend / r.purchase_count).toFixed(2);
+      html += `<tr><td class="dim">${i + 1}</td><td>${r.user_id}</td><td class="num">$${r.total_spend.toLocaleString(undefined,{minimumFractionDigits:2})}</td><td class="num">${r.purchase_count}</td><td class="num">$${Number(avg).toLocaleString(undefined,{minimumFractionDigits:2})}</td></tr>`;
+    });
+  }
+
+  html += '</tbody></table>';
+  c.innerHTML = html;
+}
+
+// auto-run first query on load
+runQuery('revenue');
+</script>
+</body>
+</html>
