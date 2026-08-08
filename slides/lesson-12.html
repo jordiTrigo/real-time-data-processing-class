@@ -6,7 +6,7 @@
 <title>Lesson 12 · Break everything, build the agent who gets paged · Capstone finale</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&amp;family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
 <style>
 /* ============================================================
    LESSON 12 — "THE AGENT WHO GETS PAGED" · CAPSTONE FINALE
@@ -337,6 +337,393 @@ h2 em.ai,h1 em.ai{color:var(--violet)}
 <div class="progress-bar" id="progressBar"></div>
 <span class="kbd-hint">&uarr; &darr; navigate &middot; R reveal &middot; N notes</span>
 <aside class="notes" id="notes" aria-live="polite"></aside>
+
+<!-- Rich instructor notes. These stay inert until N is pressed. Keeping them as
+     HTML instead of one-line attributes makes commands and teaching beats usable
+     from the projector without requiring a second document. -->
+<template id="speakerNoteTemplates">
+  <article data-slide="s01">
+    <span class="beat">0:00–0:03 · outcome</span>
+    <p>Open with tension, not definitions. Let the full animation loop once: healthy flow, failure, violet read-only probes, human gate, recovery. Do not explain LangGraph or MCP yet.</p>
+    <p class="say"><strong>Say:</strong> “Last class we proved this pipeline healthy end to end. Today it is healthy until it is not. We will break it deliberately, investigate it as operators, and only then decide what an AI agent has earned permission to do.”</p>
+    <p><strong>Ask for hands:</strong> “Who would give a model an unrestricted production shell right now?” Pause. “Good. That instinct—not the model—is our starting safety mechanism.”</p>
+    <span class="beat">Before speaking · terminal A</span>
+    <pre><code>cd src-lesson12
+uv run python scripts/preflight.py
+uv run python scripts/verify.py --timeout 180</code></pre>
+    <p>Keep the final <code>PASS: Postgres -&gt; Debezium -&gt; Avro/Kafka -&gt; Spark -&gt; ClickHouse -&gt; API</code> line visible in another terminal. Do not inject an incident yet.</p>
+    <div class="checkpoint"><strong>Advance when:</strong> the room understands that today has two halves—human incident response first, constrained agent design second.</div>
+  </article>
+
+  <article data-slide="s02">
+    <span class="beat">0:03–0:06 · frame the capstone</span>
+    <p>Trace the pipeline left to right. Remind students that this is a self-contained Lesson 12 copy with <code>l12-</code> containers, its own ports, volumes, checkpoints, and failure fixtures. Nothing depends on Lesson 11 being up.</p>
+    <p class="say"><strong>Say:</strong> “You have two jobs. First, investigate one production-style incident as a person: symptoms, competing hypotheses, exact observations, scoped remediation, proof. Second, encode that discipline into one thin agent path. We are not building an autonomous SRE.”</p>
+    <div class="note-columns">
+      <div><span class="beat">Job 1 quality bar</span><ul><li>At least two hypotheses before editing.</li><li>Every material claim cites an exact source.</li><li>Recovery includes the canary.</li></ul></div>
+      <div><span class="beat">Job 2 quality bar</span><ul><li>Typed read-only tools.</li><li>Durable incident state.</li><li>A named human at the write boundary.</li></ul></div>
+    </div>
+    <p><strong>Plant the final thesis:</strong> messages and tool calls are events; context is state; checkpoints provide recovery; unsupported conclusions are data-quality failures. Do not unpack it fully yet.</p>
+    <div class="checkpoint"><strong>Advance when:</strong> students can repeat the two deliverables: an evidence-backed post-mortem and a safe agent vertical slice.</div>
+  </article>
+
+  <article data-slide="s03">
+    <span class="beat">0:06–0:10 · establish the incident contract</span>
+    <p>Have four people read one card each: Observe, Authorize, Verify, Harden. After each, give the concrete counterexample.</p>
+    <ul><li><strong>Observe:</strong> “Kafka looks bad” is not evidence; topic, partition, offset, time window is.</li><li><strong>Authorize:</strong> a correct diagnosis does not grant write permission.</li><li><strong>Verify:</strong> green containers can serve stale or incorrect data.</li><li><strong>Harden:</strong> an incident that produces no monitor, test, limit, runbook, or eval will recur as folklore.</li></ul>
+    <p class="say"><strong>Say slowly:</strong> “A dashboard is evidence, not a verdict.” Then ask: “What could be green while the business result is wrong?” Take two answers.</p>
+    <div class="warn"><strong>Instructor stop:</strong> if anyone suggests restarting or changing config, ask what observation justifies it and what evidence would prove the action worked. Do not reward action bias.</div>
+    <div class="checkpoint"><strong>Advance when:</strong> the room agrees that evidence, authority, and recovery are three separate claims.</div>
+  </article>
+
+  <article data-slide="s04">
+    <span class="beat">0:10–0:12 · explain the clock</span>
+    <p>Move quickly. Each pair owns one incident for forty minutes; they do not run all six. The room learns all six during the debrief. The first 90 minutes are human operations; after the break the same standard is applied to the agent.</p>
+    <p class="say"><strong>Say:</strong> “At 1:15 I will stop active investigation even if you are not finished. A clean evidence trail from an unfinished investigation is more valuable than an unexplained fix.”</p>
+    <ul><li>At ten stuck minutes, give hint one.</li><li>Five minutes later, give hint two only if they still cannot name the next observation.</li><li>At 1:15, one spokesperson per station prepares a two-minute report.</li></ul>
+    <p><strong>Instructor setup:</strong> keep one terminal for the healthy baseline, one for the active scenario, and one for the agent demo. During the break, reset only the instructor scenario.</p>
+    <div class="checkpoint"><strong>Advance when:</strong> pairs know their station, timebox, hint cadence, and two-minute debrief format.</div>
+  </article>
+
+  <article data-slide="s05">
+    <span class="beat">0:12–0:15 · prove the baseline live</span>
+    <p>Run from the lesson directory. Narrate the difference between dependency readiness and the end-to-end data contract.</p>
+    <pre><code>cd src-lesson12
+uv sync
+docker compose up -d --build
+docker compose ps -a
+uv run python scripts/preflight.py
+uv run python scripts/verify.py --timeout 180</code></pre>
+    <p><strong>Point out:</strong> <code>preflight.py</code> checks operational prerequisites; <code>verify.py</code> creates/traces a canary across source LSN, Kafka partition/offset, ClickHouse version, API result, and freshness.</p>
+    <span class="beat">Open the operator surfaces</span>
+    <pre><code>open dashboard.html
+open http://localhost:23000
+open http://localhost:29090</code></pre>
+    <p>Grafana credentials are <code>admin</code> / <code>lesson12</code>. Keep the verifier’s PASS line visible. Ask: “If <code>docker compose ps</code> is green but the verifier fails, is the baseline healthy?” Expected answer: no.</p>
+    <div class="warn"><strong>If verification fails:</strong> do not start the CTF. Diagnose the baseline or use prepared evidence fixtures. An unknown baseline invalidates the scenario.</div>
+    <div class="checkpoint"><strong>Advance when:</strong> the complete verifier prints PASS—not merely when containers say healthy.</div>
+  </article>
+
+  <article data-slide="s06">
+    <span class="beat">0:15–0:20 · failure thinking, fast</span>
+    <p>Use one minute per row. Ask the question first; reveal the example only after a student answers. Keep every abstraction tied to a place where retained work or incorrect meaning can accumulate.</p>
+    <ul><li><strong>Boundary:</strong> source, CDC, log/schema, processor/checkpoint, sink, serving.</li><li><strong>Steady state:</strong> a measurable claim, not “looks normal.”</li><li><strong>Chaos loop:</strong> hypothesize, bounded injection, observe, harden.</li><li><strong>Failure choice:</strong> recover, degrade, quarantine, or stop safely.</li><li><strong>Capacity:</strong> rate × time × replication/headroom.</li></ul>
+    <p class="say"><strong>Say:</strong> “Never inject first. If you did not write the expected observation and reset path, you are not running an experiment; you are creating an outage.”</p>
+    <p><strong>Quick prompt:</strong> “Where can retained work accumulate?” Accept WAL, Kafka segments, Spark backlog/state, and ClickHouse parts. Then land: “The most dangerous incident is plausible, green, and wrong.”</p>
+    <div class="checkpoint"><strong>Advance when:</strong> students can name both the failure boundary and the expected steady-state signal for their station.</div>
+  </article>
+
+  <article data-slide="s07">
+    <span class="beat">0:20–0:26 · rehearse the incident loop</span>
+    <p>Run the diagram as call-and-response. Point to a node, ask what comes next, and refuse to skip from symptom to fix.</p>
+    <p class="say"><strong>Say:</strong> “The goal of a probe is not to collect more data. It is to change the relative likelihood of competing hypotheses.”</p>
+    <ul><li><strong>Observe:</strong> state the symptom without cause language.</li><li><strong>Hypothesize:</strong> name at least two causes at different boundaries.</li><li><strong>Inspect:</strong> choose one least-invasive read-only probe.</li><li><strong>Evidence:</strong> record the raw observation and which hypothesis changed.</li><li><strong>Propose:</strong> scope, risk, rollback, recovery signal.</li><li><strong>Approve/fix/verify:</strong> authorization and recovery remain explicit.</li></ul>
+    <p><strong>Ask:</strong> “Why is restart not an observation?” Expected: it mutates state, can erase transient evidence, and may make the system look recovered without establishing root cause.</p>
+    <div class="warn"><strong>Never run in class:</strong> arbitrary shell repair, arbitrary SQL writes, dropping a replication slot, deleting Kafka segments, or <code>docker compose down -v</code>.</div>
+    <div class="checkpoint"><strong>Advance when:</strong> the room can identify the exact boundary where human approval begins.</div>
+  </article>
+
+  <article data-slide="s08">
+    <span class="beat">0:26–0:30 · model the evidence ledger</span>
+    <p>Open the post-mortem template and make pairs create their ledger before activation.</p>
+    <pre><code>cd src-lesson12
+open POSTMORTEM_TEMPLATE.md</code></pre>
+    <p>Read the example rows aloud. Emphasize the separation between observation and inference: “Registry returned 404 for schema 999999” is observed; “the producer used an unknown schema ID” is the supported hypothesis.</p>
+    <p><strong>Require durable identities:</strong> order/canary ID; topic, partition, offset; source LSN; schema ID/version; table/partition/active parts; trace/run ID; exact time window.</p>
+    <p class="say"><strong>Say:</strong> “If another operator cannot reproduce where your claim came from, you recorded a conclusion, not evidence.”</p>
+    <p><strong>Mini-exercise:</strong> ask students to improve “checked logs; consumer broken.” A good rewrite includes service name, command, timestamp, exact error, topic-partition-offset, and the hypothesis supported.</p>
+    <div class="checkpoint"><strong>Advance when:</strong> every pair has an empty ledger with the five displayed columns ready to fill.</div>
+  </article>
+
+  <article data-slide="s09">
+    <span class="beat">0:30–0:35 · hand off the CTF</span>
+    <p>State the rules, then demonstrate the scenario controller’s preview/apply distinction. Replace the ID with the assigned station.</p>
+    <pre><code>cd src-lesson12
+uv run python -m scenarios.cli activate poison-deserialization
+# Read the bounded commands and safety boundary. Nothing ran yet.
+uv run python -m scenarios.cli activate poison-deserialization --apply
+uv run python -m scenarios.cli status poison-deserialization --live</code></pre>
+    <p><strong>Working rule:</strong> students may use AI, documentation, logs, metrics, and read-only queries, but every useful claim must enter the ledger with its exact source. They write two competing hypotheses before a mutation.</p>
+    <span class="beat">Finish and prove recovery</span>
+    <pre><code>uv run python -m scenarios.cli reset poison-deserialization
+uv run python -m scenarios.cli reset poison-deserialization --apply
+uv run python scripts/preflight.py
+uv run python scripts/verify.py --timeout 180</code></pre>
+    <p>The first reset is a preview. The second applies it. For <code>partition-hotspot</code>, reset may have no mutation because its 300-update burst ends by itself; still run the recovery checks.</p>
+    <div class="warn"><strong>Do not:</strong> run <code>docker compose down -v</code>. It deletes the lesson’s databases, Kafka log, ClickHouse state, Spark checkpoint, and dashboards.</div>
+    <div class="checkpoint"><strong>Release pairs when:</strong> each has its scenario ID, ledger, two initial hypotheses, and understands that controller actions are dry-run without <code>--apply</code>.</div>
+  </article>
+
+  <article data-slide="s10">
+    <span class="beat">0:35–0:38 · assign the six stations</span>
+    <p>Show symptoms, not root causes. Give each pair exactly one station card. Use the CLI to display the bounded safety contract if anyone is nervous about activation.</p>
+    <pre><code>cd src-lesson12
+uv run python -m scenarios.cli list
+uv run python -m scenarios.cli manifest poison-deserialization</code></pre>
+    <p><strong>Map letters to IDs:</strong></p>
+    <ul><li>A → <code>poison-deserialization</code></li><li>B → <code>partition-hotspot</code></li><li>C → <code>paused-connector-slot-risk</code></li><li>D → <code>silent-data-contract</code></li><li>E → <code>clickhouse-tiny-parts</code></li><li>F → <code>kafka-retention-risk</code></li></ul>
+    <p>Only one scenario may be active in an environment. The poison record lives on isolated <code>l12.poison-boundary</code>; retention uses isolated <code>l12.retention-risk</code>; WAL growth and parts are tightly bounded.</p>
+    <div class="warn"><strong>Shared-machine fallback:</strong> do not activate six failures simultaneously. Use prepared logs/metrics for five stations while the instructor machine runs one live scenario.</div>
+    <div class="checkpoint"><strong>Advance when:</strong> every pair can say its symptom and boundary without saying the root cause.</div>
+  </article>
+
+  <article data-slide="s11">
+    <span class="beat">0:38–1:15 · instructor field guide A–C</span>
+    <p>Keep this slide hidden unless a group needs direction. Ask for the smallest discriminating observation; do not give the diagnosis. The commands below use the controller’s fixed, read-only probes.</p>
+    <div class="note-columns">
+      <div><span class="beat">A · poison record</span><pre><code>uv run python -m scenarios.cli activate poison-deserialization --apply
+uv run python -m scenarios.cli status poison-deserialization --live
+curl -i http://localhost:28081/schemas/ids/999999</code></pre><p>Look for repeated probe failure plus HTTP 404. Ask: “What input position survives a restart?” Reset with <code>reset poison-deserialization --apply</code>.</p></div>
+      <div><span class="beat">B · partition hotspot</span><pre><code>uv run python -m scenarios.cli activate partition-hotspot --apply
+uv run python -m scenarios.cli status partition-hotspot --live</code></pre><p>Compare per-partition end offsets. Ask what stable business key preserves—and why random keys would trade away per-order ordering. The burst is exactly 300 updates and stops.</p></div>
+      <div><span class="beat">C · retained WAL</span><pre><code>uv run python -m scenarios.cli activate paused-connector-slot-risk --apply
+uv run python -m scenarios.cli status paused-connector-slot-risk --live</code></pre><p>Look for paused Connect plus slot retained-WAL distance. Reset with <code>reset paused-connector-slot-risk --apply</code>, then watch the slot advance.</p></div>
+    </div>
+    <div class="warn"><strong>Safety line:</strong> never drop the replication slot. It exchanges source protection for CDC discontinuity and a required re-snapshot; it is a discussion-only emergency tradeoff here.</div>
+    <div class="checkpoint"><strong>Intervene only when:</strong> a pair cannot name a next observation. Hint 1 asks about position/distribution/downstream position; hint 2 points to schema ID, partition offsets, or replication-slot LSN respectively.</div>
+  </article>
+
+  <article data-slide="s12">
+    <span class="beat">0:38–1:15 · instructor field guide D–F</span>
+    <p>These scenarios are intentionally plausible and bounded. The disk does not need to fill and the query does not need to fail for risk to be real.</p>
+    <div class="note-columns">
+      <div><span class="beat">D · silent contract</span><pre><code>uv run python -m scenarios.cli activate silent-data-contract --apply
+uv run python -m scenarios.cli status silent-data-contract --live</code></pre><p>Look for 100× source outliers while schemas remain compatible. Reset restores at most 12 snapshotted values through compensating CDC updates.</p></div>
+      <div><span class="beat">E · tiny parts</span><pre><code>uv run python -m scenarios.cli activate clickhouse-tiny-parts --apply
+uv run python -m scenarios.cli status clickhouse-tiny-parts --live</code></pre><p>Connect one-row insert frequency to active MergeTree parts. Reset performs the scenario’s explicit bounded merge. Do not prescribe <code>OPTIMIZE ... FINAL</code> as routine ingestion.</p></div>
+      <div><span class="beat">F · retention risk</span><pre><code>uv run python -m scenarios.cli activate kafka-retention-risk --apply
+uv run python -m scenarios.cli status kafka-retention-risk --live</code></pre><p>Have students calculate bytes = ingress bytes/sec × replay seconds × replication factor × headroom. The fixture is capped at 1 MiB and writes only 128 KiB.</p></div>
+    </div>
+    <p class="say"><strong>Ask D:</strong> “Can a value satisfy its type and use the wrong unit?” <strong>Ask E:</strong> “What physical object does each insert create?” <strong>Ask F:</strong> “Which policy relates retention to actual capacity?”</p>
+    <div class="checkpoint"><strong>Before debrief:</strong> every pair resets with its own ID, then runs <code>preflight.py</code> and <code>verify.py --timeout 180</code>.</div>
+  </article>
+
+  <article data-slide="s13">
+    <span class="beat">Optional live spotlight · station D</span>
+    <p>Use this only if you want one room-wide incident. First ask for predictions. Do not reveal the blurred answer until someone proposes a source-value check.</p>
+    <pre><code>cd src-lesson12
+uv run python -m scenarios.cli activate silent-data-contract
+uv run python -m scenarios.cli activate silent-data-contract --apply
+uv run python -m scenarios.cli status silent-data-contract --live</code></pre>
+    <p><strong>Narrate:</strong> containers are healthy, records decode, offsets advance, Registry compatibility is unchanged, and the values are still wrong. The pipeline is faithfully transporting corrupted business meaning.</p>
+    <p><strong>Press <code>R</code></strong> after the prediction. Name the distinction: schema compatibility validates shape; business contracts validate units, ranges, distributions, currency, and reconciliation.</p>
+    <span class="beat">Restore and prove</span>
+    <pre><code>uv run python -m scenarios.cli reset silent-data-contract --apply
+uv run python scripts/preflight.py
+uv run python scripts/verify.py --timeout 180</code></pre>
+    <div class="checkpoint"><strong>Advance when:</strong> a student can explain why “source equals sink” is insufficient when the source itself is semantically wrong.</div>
+  </article>
+
+  <article data-slide="s14">
+    <span class="beat">1:15–1:30 · six two-minute debriefs</span>
+    <p>Use a visible two-minute timer. Cut off solution lists and redirect to the evidence trail. Each spokesperson follows the four cards exactly.</p>
+    <ul><li><strong>0:00–0:30:</strong> symptom and misleading signal.</li><li><strong>0:30–1:10:</strong> decisive observation, exact source, tempting alternative ruled out.</li><li><strong>1:10–1:40:</strong> smallest safe remediation, blast radius, rollback, expected recovery signal.</li><li><strong>1:40–2:00:</strong> prevention: monitor, contract check, capacity policy, or eval.</li></ul>
+    <p class="say"><strong>Repeat after every station:</strong> “What evidence ruled out the tempting alternative?”</p>
+    <p><strong>Course links:</strong> A→schema identity; B→keys/partitions; C→CDC slots; D→semantic contracts; E→physical OLAP layout; F→capacity/replay. Write one phrase per station on the board.</p>
+    <div class="warn"><strong>Do not award closure</strong> for “we restarted it and it worked.” Require the scenario-specific steady-state signal plus the canary.</div>
+    <div class="checkpoint"><strong>Break when:</strong> all six misleading signals and decisive observations are visible to the whole room.</div>
+  </article>
+
+  <article data-slide="s15">
+    <span class="beat">1:30–1:40 · break and instructor reset</span>
+    <p>Start the on-slide timer. Leave the healthy architecture visible. Reset only the instructor’s active profile—do not touch learner artifacts and never remove volumes.</p>
+    <pre><code>cd src-lesson12
+# Replace with the instructor scenario that is actually active.
+uv run python -m scenarios.cli reset silent-data-contract
+uv run python -m scenarios.cli reset silent-data-contract --apply
+uv run python scripts/preflight.py
+uv run python scripts/verify.py --timeout 180</code></pre>
+    <p>Prepare the deterministic agent fallback so the second half does not depend on a network or API key:</p>
+    <pre><code>uv run python -m agent.demo --scenario poison-deserialization
+uv run python -m evals.runner</code></pre>
+    <p>If you plan the durable demo, ensure <code>.state/</code> exists implicitly by running the first LangGraph command on slide 20. Do not put credentials in slides, shell history, or repository files.</p>
+    <div class="warn"><strong>Never during break:</strong> <code>docker compose down -v</code>. The right reset is the scoped scenario controller.</div>
+    <div class="checkpoint"><strong>Resume when:</strong> the healthy verifier passes and the offline agent demo runs.</div>
+  </article>
+
+  <article data-slide="s16">
+    <span class="beat">1:40–1:43 · transition to the agent</span>
+    <p>Reconnect to the first half. The agent receives no exemption from the incident contract; it must produce the same symptom, evidence, proposal, approval boundary, and recovery plan.</p>
+    <p class="say"><strong>Say:</strong> “We are not replacing investigators. We are designing a collaborator whose state, tools, evidence, and permissions can be inspected.”</p>
+    <p>Run the deterministic trace first. It requires no model or API key and stops before remediation:</p>
+    <pre><code>cd src-lesson12
+uv run python -m agent.demo --scenario poison-deserialization</code></pre>
+    <p>Scroll only enough to show: typed incident state, selected read-only tools, evidence objects, remediation proposal, and phase <code>awaiting_human_approval</code>.</p>
+    <p><strong>Position LangGraph accurately:</strong> it is the visible state-machine runtime. The lesson is durable state and explicit edges, not a framework logo.</p>
+    <div class="checkpoint"><strong>Advance when:</strong> students see the agent output as a trajectory through state—not a chatbot paragraph.</div>
+  </article>
+
+  <article data-slide="s17">
+    <span class="beat">1:43–1:47 · agent or workflow?</span>
+    <p>Ask the room to classify each operation before revealing the cards.</p>
+    <ul><li><code>preflight.py</code> and <code>verify.py</code>: deterministic workflow.</li><li>Collect connector status: deterministic read-only tool.</li><li>Choose between connector status and schema lookup from an ambiguous symptom: bounded model judgment.</li><li>Authorize a restart or data change: human decision.</li><li>Apply/reset scenario and verify: deterministic external workflow.</li></ul>
+    <p class="say"><strong>Say:</strong> “Put model judgment only where ambiguity earns its cost. Health collection, authorization, remediation execution, and recovery verification stay deterministic.”</p>
+    <p><strong>Ask:</strong> “What failure do we introduce if the model decides whether its own fix worked?” Expected: confirmation bias/unsupported claims and non-repeatable verification.</p>
+    <div class="checkpoint"><strong>Advance when:</strong> students can point to the one graph edge where judgment is useful: selecting the next read-only probe or revising a hypothesis.</div>
+  </article>
+
+  <article data-slide="s18">
+    <span class="beat">1:47–1:52 · typed tools and least privilege</span>
+    <p>Read the bad signature aloud: <code>run_shell(command: str) -&gt; str</code>. Ask students to enumerate what is missing: scope, permissions, typed errors, stable output, audit identity, and side-effect guarantee.</p>
+    <p>Then point to the real catalog in <code>agent/tools.py</code>. Every model-facing tool is no-argument and returns the same <code>ToolResult</code>. Host, SQL, topic, and subprocess arguments are fixed in application code.</p>
+    <pre><code>cd src-lesson12
+uv run python -c "from agent.tools import Lesson12Diagnostics; print('\n'.join(Lesson12Diagnostics().names()))"</code></pre>
+    <p><strong>Call out the exception:</strong> <code>runbook_context</code> is tagged <code>retrieved_guidance</code>; the other observations are tagged <code>live_observation</code>. A tool failure also returns structured state rather than disappearing into prose.</p>
+    <p class="say"><strong>Say:</strong> “Tool design is application design. A precise description and narrow result schema change the trajectory more reliably than asking the model to be careful.”</p>
+    <div class="checkpoint"><strong>Advance when:</strong> the room can explain why a fixed read-only inspector is safer and more testable than arbitrary shell or SQL.</div>
+  </article>
+
+  <article data-slide="s19">
+    <span class="beat">1:52–1:55 · MCP without mythology</span>
+    <p>Define the three concepts in one sentence each: tools expose callable capabilities; resources expose context; prompts expose reusable task starts. Then state exactly what this repository implements.</p>
+    <pre><code>cd src-lesson12
+uv run python -m mcp_server.server</code></pre>
+    <p>The command starts the stdio server and waits for an MCP client; use <code>Ctrl-C</code> after showing that it is a server process. The server name is <code>lesson12-incident-diagnostics</code> and it registers 15 read-only, no-argument tools.</p>
+    <ul><li>Runbooks/topology are internal lexical resources in <code>agent/resources.py</code>, not MCP resources yet.</li><li>No MCP prompts are registered.</li><li>MCP standardizes exposure; it does not create authorization or least privilege automatically.</li></ul>
+    <div class="warn"><strong>Do not overclaim:</strong> say “the current server exposes tools only.” Do not imply that resources, prompts, authentication, or remote deployment already exist.</div>
+    <div class="checkpoint"><strong>Advance when:</strong> students can separate protocol interoperability from permission policy.</div>
+  </article>
+
+  <article data-slide="s20">
+    <span class="beat">1:55–2:00 · durable state and approval interrupt</span>
+    <p>Connect the graph to Spark checkpoints: after process restart, the investigation must retain evidence, rejected hypotheses, tool trajectory, proposal, and whether a human decision already occurred.</p>
+    <span class="beat">Run until the durable interrupt</span>
+    <pre><code>cd src-lesson12
+uv run python -m agent.demo --scenario poison-deserialization \
+  --runtime langgraph \
+  --checkpoint .state/class.sqlite \
+  --thread-id demo</code></pre>
+    <p>Show that the graph stops at <code>interrupt()</code>. It has nodes for observe, investigation loop, and approval. It has <strong>no remediation execution node</strong>.</p>
+    <p><strong>Point to fields:</strong> incident ID, symptom, phase, evidence, hypotheses, tool calls, proposal, approval, report. The stable <code>thread-id</code> is the recovery identity; changing it starts another incident thread.</p>
+    <p class="say"><strong>Say:</strong> “A checkpoint prevents amnesia; it does not make the state correct. The evidence contract does that.”</p>
+    <div class="checkpoint"><strong>Advance when:</strong> the terminal is visibly paused awaiting a human decision and students understand that no fix ran.</div>
+  </article>
+
+  <article data-slide="s21">
+    <span class="beat">2:00–2:03 · guidance versus proof</span>
+    <p>Use the displayed JSON to distinguish facts from interpretation. A runbook can say an unknown schema ID often causes a retry loop; only a live Registry lookup and probe log establish this incident.</p>
+    <p><strong>Ask the room:</strong> “Which field is observed?” Expected: tool name/raw result/source kind. “Which field is inferred?” Expected: root cause/confidence/hypothesis.</p>
+    <p>Run a second deterministic case if needed to show both evidence kinds:</p>
+    <pre><code>cd src-lesson12
+uv run python -m agent.demo --scenario silent-data-contract</code></pre>
+    <p>Look for <code>runbook_context</code> tagged as retrieved guidance and <code>source_business_outliers</code>/<code>schema_versions</code> as live observations. The workflow blocks a report without at least one live observation.</p>
+    <p class="say"><strong>Say:</strong> “Retrieval narrows where to look. It cannot report what the system is doing now.”</p>
+    <div class="checkpoint"><strong>Advance when:</strong> students stop calling retrieved documentation “evidence that production is broken.”</div>
+  </article>
+
+  <article data-slide="s22">
+    <span class="beat">2:03–2:06 · human approval is a state transition</span>
+    <p>Before resuming, ask four questions: blast radius, exact scope, rollback, and expected recovery signal. Have one named person approve or reject.</p>
+    <pre><code>cd src-lesson12
+uv run python -m agent.demo --scenario poison-deserialization \
+  --runtime langgraph \
+  --checkpoint .state/class.sqlite \
+  --thread-id demo \
+  --decision approve \
+  --approved-by instructor \
+  --note 'bounded fixture only; reset remains external'</code></pre>
+    <p><strong>Emphasize:</strong> this records authority. It does not execute a remediation and it does not prove recovery. The actual scoped reset remains outside the agent:</p>
+    <pre><code>uv run python -m scenarios.cli reset poison-deserialization --apply
+uv run python scripts/preflight.py
+uv run python scripts/verify.py --timeout 180</code></pre>
+    <div class="warn"><strong>Denied in class:</strong> drop slot, delete log segments, arbitrary shell/SQL, unbounded backfill. “A human approved it” is not sufficient if the capability was never safe to expose.</div>
+    <div class="checkpoint"><strong>Advance when:</strong> students can state the three separate events: proposal, authorization, externally verified execution/recovery.</div>
+  </article>
+
+  <article data-slide="s23">
+    <span class="beat">2:06–2:09 · agent observability</span>
+    <p>Compare the two causal traces. For the pipeline: record, CDC position, Kafka offset, checkpoint, sink version, API. For the agent: symptom, tool choice, raw observation, state update, proposal, approval, verification.</p>
+    <p class="say"><strong>Say:</strong> “We trace reasoning actions, not private chain-of-thought. What matters operationally is what input the application supplied, which tool was selected, what observation returned, what state changed, and what authority was recorded.”</p>
+    <p><strong>Use the durable demo output:</strong> point at the ordered <code>tool_calls</code> and evidence IDs. Ask: “If the diagnosis is wrong, where can we improve the system?” Accept tool description, missing probe, state transition, evidence requirement, or eval—not “make the model smarter.”</p>
+    <p>Be precise about current scope: this repository records an application-level trajectory and SQLite checkpoint. It does not include hosted spans, token telemetry, or a production observability backend.</p>
+    <div class="checkpoint"><strong>Advance when:</strong> students can use a failed trajectory to identify a specific system change.</div>
+  </article>
+
+  <article data-slide="s24">
+    <span class="beat">2:09–2:13 · turn incidents into evals</span>
+    <p>Run all six deterministic cases. No Docker daemon, model key, or network is required for these fixtures.</p>
+    <pre><code>cd src-lesson12
+uv run python -m evals.runner
+uv run pytest -q tests/test_agent_evals.py tests/test_agent_workflow.py</code></pre>
+    <p>Read one result row. The implemented scorer checks four binary claims: correct diagnosis; required guidance plus live evidence; stopped at <code>awaiting_human_approval</code> with no approval; explicit recovery signal/fixture. Every reference case should score <code>1.0</code>.</p>
+    <p><strong>Distinguish implementation from aspiration:</strong> the teaching rubric also values tool relevance, latency, call count, and token/cost budgets, but those are not currently scored. Say so explicitly.</p>
+    <p class="say"><strong>Say:</strong> “An agent that guesses the right root cause through unsafe or unsupported steps does not pass. We score the trajectory, not the charisma of the final paragraph.”</p>
+    <div class="checkpoint"><strong>Advance when:</strong> the six cases pass and students can name one new eval they would add from today’s failed trail.</div>
+  </article>
+
+  <article data-slide="s25">
+    <span class="beat">2:13–2:15 · multi-agent skepticism</span>
+    <p>Do not reveal the verdict immediately. Ask for a vote: four specialists or one investigator with four good tools? Ask advocates of specialists to name the measurable benefit and new failure modes.</p>
+    <ul><li>Handoffs can lose evidence identity and uncertainty.</li><li>More prompts and contexts increase cost and non-determinism.</li><li>Authority becomes harder to reason about.</li><li>Specialization may help only when context or permissions are genuinely distinct.</li></ul>
+    <p><strong>Press <code>R</code></strong> to reveal the default verdict.</p>
+    <p class="say"><strong>Say:</strong> “Composition needs an eval-backed reason. Start with one stateful investigator and typed tools. Add specialists only when a test shows that distinct context or authority improves correctness or safety.”</p>
+    <div class="checkpoint"><strong>Advance when:</strong> students can state an experiment that would justify—not merely decorate—a multi-agent design.</div>
+  </article>
+
+  <article data-slide="s26">
+    <span class="beat">2:05–2:35 · student build block</span>
+    <p>Give pairs a narrow target. They may write executable code, pseudocode, or a diagram plus mocked trace, but all five artifacts must be inspectable.</p>
+    <pre><code>cd src-lesson12
+open STUDENT_HANDOUT.md
+open agent/models.py
+open agent/tools.py
+open agent/workflow.py
+open evals/scenarios.py</code></pre>
+    <p><strong>Minimum submission:</strong> one typed tool contract; structured incident/evidence state; graph or executable path; one ordered trace; one station-based eval with explicit pass conditions.</p>
+    <p><strong>Circulation questions:</strong></p>
+    <ul><li>Which edge can change external state?</li><li>What exact capability is denied?</li><li>What live observation supports the root cause?</li><li>Who approves, and what is recorded?</li><li>What exact signal plus canary proves recovery?</li></ul>
+    <p>At ten minutes, ask for the state schema. At twenty, ask for a trace. At twenty-five, make them run/grade the eval so the last five minutes are for correcting the boundary.</p>
+    <div class="checkpoint"><strong>Stop at 2:35:</strong> an incomplete but legible vertical slice is acceptable; an autonomous repair demo without evidence is not.</div>
+  </article>
+
+  <article data-slide="s27">
+    <span class="beat">2:35–2:50 · human versus agent</span>
+    <p>Give both sides only this symptom: API responds, but <code>source_ts</code> is old. Pause after every proposed observation. Humans and agent use the same rubric; the agent does not need to win.</p>
+    <p><strong>Important repository reality:</strong> the controller currently exposes six IDs, not a separate seventh scenario. For a live run, hold <code>paused-connector-slot-risk</code> out of the earlier station rotation and use it here. If station C already ran, call this a timed replay—not “unseen.” Do not invent a nonexistent scenario ID.</p>
+    <pre><code>cd src-lesson12
+uv run python -m scenarios.cli activate paused-connector-slot-risk --apply
+uv run python -m scenarios.cli status paused-connector-slot-risk --live
+uv run python -m agent.demo --scenario paused-connector-slot-risk</code></pre>
+    <p>After each tool call ask: Would you call that next? What hypothesis changed? Is the evidence sufficient? Would you approve the proposal? What single recovery signal should move?</p>
+    <span class="beat">Close the live fixture</span>
+    <pre><code>uv run python -m scenarios.cli reset paused-connector-slot-risk --apply
+uv run python scripts/preflight.py
+uv run python scripts/verify.py --timeout 180</code></pre>
+    <div class="checkpoint"><strong>Score both trails on:</strong> root cause, decisive evidence, safety boundary, wasted calls, and explicit recovery—not speed or confidence alone.</div>
+  </article>
+
+  <article data-slide="s28">
+    <span class="beat">2:50–2:54 · reconnect all twelve lessons</span>
+    <p>Walk the rows quickly and ask the room to supply the nouns: WAL, consensus, columnar storage, idempotency, slots, offsets, watermarks, checkpoints, latency, parts, schema/backpressure, incident evidence.</p>
+    <p>Then make three explicit cross-links:</p>
+    <ul><li>The paused-connector incident is Lesson 5’s replication slot under operational pressure.</li><li>The hotspot is Lesson 6’s key/partition/offset model seen as skew.</li><li>The agent’s SQLite thread checkpoint is Lesson 8’s recovery principle applied to incident state.</li></ul>
+    <p class="say"><strong>Say:</strong> “None of the earlier lessons were disposable demos. Each introduced a boundary because the previous abstraction was not enough. Today those boundaries became the places we diagnose and constrain an agent.”</p>
+    <p><strong>Ask:</strong> “Which lesson gave you the most useful piece of evidence today?” Take two fast answers.</p>
+    <div class="checkpoint"><strong>Advance when:</strong> the class sees incident response and agent design as the integration exercise, not a new unrelated topic.</div>
+  </article>
+
+  <article data-slide="s29">
+    <span class="beat">2:54–2:57 · land the thesis</span>
+    <p>Slow down. Read the headline, pause, then map each highlighted phrase.</p>
+    <ul><li><strong>Events:</strong> user/model messages and typed tool calls.</li><li><strong>State:</strong> symptom, evidence, hypotheses, proposal, approval, report.</li><li><strong>Checkpoints:</strong> durable thread state that allows recovery without repeating work.</li><li><strong>Data-quality failure:</strong> an unsupported claim that looks plausible downstream.</li></ul>
+    <p class="say"><strong>Say:</strong> “The agent is not exempt from distributed-systems thinking. It has boundaries, partial failure, replay, stale state, authorization, observability, and data quality. Trust comes from engineering those properties—not from a fluent model.”</p>
+    <p>Let the sentence sit for three seconds. Do not fill the silence with framework names.</p>
+    <div class="checkpoint"><strong>Advance when:</strong> you have given the room a quiet beat to connect the thesis to their own vertical slice.</div>
+  </article>
+
+  <article data-slide="s30">
+    <span class="beat">2:57–3:00 · prove healthy and close</span>
+    <p>End with the system genuinely recovered. Run the contract one final time while students note the submission.</p>
+    <pre><code>cd src-lesson12
+uv run python scripts/preflight.py
+uv run python scripts/verify.py --timeout 180
+uv run python -m evals.runner</code></pre>
+    <p><strong>Submission:</strong> one evidence-backed post-mortem plus one safe agent vertical slice containing typed tools, durable state, approval boundary, ordered trace, and one eval case. A demo video or polished chatbot answer is not a substitute.</p>
+    <p class="say"><strong>Say:</strong> “Systems thinking survives changes in framework names. Keep the positions visible, keep the boundaries narrow, make recovery testable, and never confuse a plausible answer with evidence. Thank you—this is the last class.”</p>
+    <p>Leave the final PASS and six <code>1.0</code> eval rows visible if time allows. Tell students where and when to submit using the course’s normal channel.</p>
+    <div class="checkpoint"><strong>End state:</strong> no active scenario, healthy verifier passes, and every pair knows the two required artifacts.</div>
+  </article>
+</template>
 
 <!-- ═══ 01 · COVER — the pipeline comes alive ═══════════════════════ -->
 <section class="slide deep" id="s01" data-speaker="Cold open. Do not explain any tool yet. Say: 'Last class we proved this pipeline healthy end to end. Today the system is healthy until it is not — and we will earn the right for an agent to help.' Point at the word PAGED in red, and at the violet agent chip. Then ask the room: who here would give an AI agent a production shell right now? The honest answer is nobody — and that instinct is the whole lesson. Let the animation loop once: healthy flow, an incident downstream of Kafka, the agent probing read-only, a human approval gate, recovery.">
@@ -1017,6 +1404,7 @@ h2 em.ai,h1 em.ai{color:var(--violet)}
 const slides=[...document.querySelectorAll('.slide')];
 const bar=document.getElementById('progressBar');
 const notes=document.getElementById('notes');
+const noteTemplates=document.getElementById('speakerNoteTemplates').content;
 const io=new IntersectionObserver((entries)=>{
   entries.forEach(e=>{
     if(e.isIntersecting){
@@ -1031,7 +1419,13 @@ slides.forEach(s=>io.observe(s));
 
 function go(n){const i=Math.max(0,Math.min(slides.length-1,n));slides[i].scrollIntoView({behavior:'smooth'});}
 function current(){let best=0,bestTop=Infinity;slides.forEach((s,i)=>{const t=Math.abs(s.getBoundingClientRect().top);if(t<bestTop){bestTop=t;best=i;}});return best;}
-function renderNotes(i){const s=slides[i];notes.innerHTML='<h3>speaker notes &middot; slide '+(i+1)+' / '+slides.length+'</h3>'+(s.dataset.speaker||'&mdash;');}
+function renderNotes(i){
+  const s=slides[i];
+  const rich=noteTemplates.querySelector('[data-slide="'+s.id+'"]');
+  const body=rich ? rich.innerHTML : (s.dataset.speaker||'&mdash;');
+  notes.innerHTML='<h3>speaker notes &middot; slide '+(i+1)+' / '+slides.length+' &middot; N to close</h3>'+body;
+  notes.scrollTop=0;
+}
 
 window.addEventListener('keydown',(e)=>{
   if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();go(current()+1);}
